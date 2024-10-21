@@ -21,6 +21,11 @@ WebServer server(80);
 const int LED1 = 26;
 const int LED2 = 27;
 
+// RGB LED pins
+const int RED_PIN = 23;
+const int GREEN_PIN = 22;
+const int BLUE_PIN = 21;
+
 // LED states
 bool led1State = false;
 bool led2State = false;
@@ -34,7 +39,7 @@ void sendHtml() {
   String response = R"(
     <!DOCTYPE html><html>
       <head>
-        <title>GrowBox webserver</title>
+        <title>ESP32 Web Server Demo</title>
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <style>
           html { font-family: sans-serif; text-align: center; }
@@ -74,8 +79,6 @@ void sendHtml() {
           .bar.hum {
             background-color: #FFC107; /* Yellow for humidity */
           }
-
-          /* Text inside the bars */
           .bar-text {
             position: absolute;
             width: 100%;
@@ -85,11 +88,24 @@ void sendHtml() {
             color: black;
             font-weight: bold;
           }
+
+          /* RGB LED Box */
+          .rgb-box {
+            border: 2px solid #333;
+            padding: 1em;
+            margin: 1em 0;
+          }
+          .color-display {
+            width: 100px;
+            height: 100px;
+            background-color: rgb(R_VAL, G_VAL, B_VAL);
+            margin: 0 auto;
+          }
         </style>
       </head>
             
       <body>
-        <h1>Growbox webserver</h1>
+        <h1>ESP32 Web Server</h1>
 
         <div>
           <h2>LED 1</h2>
@@ -112,6 +128,14 @@ void sendHtml() {
           </div>
         </div>
 
+        <div class="rgb-box">
+          <h2>RGB LED</h2>
+          <div class="color-display"></div>
+          <p>Red: R_VAL</p>
+          <p>Green: G_VAL</p>
+          <p>Blue: B_VAL</p>
+        </div>
+
       </body>
     </html>
   )";
@@ -125,14 +149,26 @@ void sendHtml() {
     response.replace("TEMP", "0");  // Fail safe for temperature
     response.replace("HUM", "0");   // Fail safe for humidity
   } else {
-    // Ensure the temperature and humidity stay within a reasonable range for display
     int tempPercentage = constrain(temperature, 0, 100);  // Limit temp to 0-100°C
     int humPercentage = constrain(humidity, 0, 100);      // Limit hum to 0-100%
-
-    // Replace placeholders with temperature and humidity values as percentages
     response.replace("TEMP", String(tempPercentage));
     response.replace("HUM", String(humPercentage));
   }
+
+  // RGB values from pins
+  int redVal = analogRead(RED_PIN); // Read Red value
+  int greenVal = analogRead(GREEN_PIN); // Read Green value
+  int blueVal = analogRead(BLUE_PIN); // Read Blue value
+  
+  // Normalize RGB values to 0-255 range for display
+  int redPercentage = map(redVal, 0, 4095, 0, 255);
+  int greenPercentage = map(greenVal, 0, 4095, 0, 255);
+  int bluePercentage = map(blueVal, 0, 4095, 0, 255);
+
+  // Update RGB values in the HTML
+  response.replace("R_VAL", String(redPercentage));
+  response.replace("G_VAL", String(greenPercentage));
+  response.replace("B_VAL", String(bluePercentage));
 
   // Update LED states in the HTML response
   response.replace("LED1_TEXT", led1State ? "ON" : "OFF");
@@ -166,6 +202,11 @@ void setup(void) {
   // Initialize LED pins as outputs
   pinMode(LED1, OUTPUT);
   pinMode(LED2, OUTPUT);
+  
+  // Initialize RGB pins as inputs
+  pinMode(RED_PIN, INPUT);
+  pinMode(GREEN_PIN, INPUT);
+  pinMode(BLUE_PIN, INPUT);
 
   // Connect to WiFi
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD, WIFI_CHANNEL);

@@ -32,7 +32,14 @@
       "left": -140.2,
       "attrs": { "color": "green" }
     },
-    { "type": "wokwi-dht22", "id": "dht1", "top": -38.1, "left": 244.2, "attrs": {} }
+    { "type": "wokwi-dht22", "id": "dht1", "top": -38.1, "left": 244.2, "attrs": {} },
+    {
+      "type": "wokwi-rgb-led",
+      "id": "rgb1",
+      "top": -159.2,
+      "left": 250.7,
+      "attrs": { "common": "anode" }
+    }
   ],
   "connections": [
     [ "esp:TX", "$serialMonitor:RX", "", [] ],
@@ -45,7 +52,16 @@
     [ "r2:2", "esp:27", "green", [ "v0" ] ],
     [ "dht1:SDA", "esp:4", "green", [ "v0" ] ],
     [ "dht1:VCC", "esp:3V3", "red", [ "v13.3", "h-31.96", "v-105.6", "h-246.44", "v44.3" ] ],
-    [ "dht1:GND", "esp:GND.2", "black", [ "v22.9", "h-70.36", "v-76.8" ] ]
+    [ "dht1:GND", "esp:GND.2", "black", [ "v22.9", "h-70.36", "v-76.8" ] ],
+    [
+      "rgb1:COM",
+      "esp:5V",
+      "red",
+      [ "v28.4", "h57.7", "v240", "h0", "v76.8", "h-345.6", "v-38.4" ]
+    ],
+    [ "rgb1:R", "esp:23", "violet", [ "v38.4", "h-134.4", "v115.2" ] ],
+    [ "rgb1:G", "esp:22", "limegreen", [ "v48", "h-142.7", "v115.2" ] ],
+    [ "rgb1:B", "esp:21", "cyan", [ "v57.6", "h-142.4", "v134.4" ] ]
   ],
   "dependencies": {}
 }
