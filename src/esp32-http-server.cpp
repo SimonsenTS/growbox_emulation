@@ -27,6 +27,7 @@ bool led2State = false;
 
 // Function prototypes
 void sendHtml();
+void toggleLED(int ledNumber);
 
 // Function to send HTML content to the web server
 void sendHtml() {
@@ -82,6 +83,20 @@ void sendHtml() {
   server.send(200, "text/html", response);
 }
 
+// Toggle LED based on the request
+void toggleLED(int ledNumber) {
+  switch (ledNumber) {
+    case 1:
+      led1State = !led1State;
+      digitalWrite(LED1, led1State);
+      break;
+    case 2:
+      led2State = !led2State;
+      digitalWrite(LED2, led2State);
+      break;
+  }
+}
+
 // Setup function for initializing the ESP32
 void setup(void) {
   Serial.begin(115200);
@@ -118,18 +133,11 @@ void setup(void) {
     Serial.print("Toggle LED #");
     Serial.println(led);
 
-    switch (led.toInt()) {
-      case 1:
-        led1State = !led1State;
-        digitalWrite(LED1, led1State);
-        break;
-      case 2:
-        led2State = !led2State;
-        digitalWrite(LED2, led2State);
-        break;
-    }
+    toggleLED(led.toInt());
 
-    sendHtml();
+    // After toggling the LED, redirect back to the main page
+    server.sendHeader("Location", "/");  // Redirect to home page
+    server.send(303);  // 303 See Other, browser will follow the redirect
   });
 
   // Start the web server
