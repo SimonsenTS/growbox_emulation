@@ -34,7 +34,7 @@ void sendHtml() {
   String response = R"(
     <!DOCTYPE html><html>
       <head>
-        <title>ESP32 Web Server Demo</title>
+        <title>GrowBox webserver</title>
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <style>
           html { font-family: sans-serif; text-align: center; }
@@ -45,11 +45,51 @@ void sendHtml() {
           .btn { background-color: #5B5; border: none; color: #fff; padding: 0.5em 1em;
                  font-size: 2em; text-decoration: none }
           .btn.OFF { background-color: #333; }
+
+          /* Bar container style */
+          .bar-container {
+            width: 100%;
+            background-color: #ddd; /* Grey background */
+            margin: 1em 0;
+            border-radius: 10px;
+            overflow: hidden;
+            height: 30px;
+            position: relative;
+          }
+          /* Base style for bars */
+          .bar {
+            height: 100%;
+            position: absolute;
+            left: 0;
+            top: 0;
+            text-align: center;
+            color: white;
+            line-height: 30px;
+            width: 0; /* Initially 0, will be updated */
+          }
+          /* Specific bar colors */
+          .bar.temp {
+            background-color: #2196F3; /* Blue for temperature */
+          }
+          .bar.hum {
+            background-color: #FFC107; /* Yellow for humidity */
+          }
+
+          /* Text inside the bars */
+          .bar-text {
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            z-index: 1;
+            line-height: 30px;
+            color: black;
+            font-weight: bold;
+          }
         </style>
       </head>
             
       <body>
-        <h1>ESP32 Web Server</h1>
+        <h1>Growbox webserver</h1>
 
         <div>
           <h2>LED 1</h2>
@@ -57,8 +97,21 @@ void sendHtml() {
           <h2>LED 2</h2>
           <a href="/toggle/2" class="btn LED2_TEXT">LED2_TEXT</a>
         </div>
-        <p>Temperature: TEMP °C</p>
-        <p>Humidity: HUM %</p>
+
+        <div>
+          <p>Temperature: TEMP &deg;C</p>
+          <div class="bar-container">
+            <div class="bar temp" style="width: TEMP%;"></div>
+            <div class="bar-text">TEMP &deg;C</div>
+          </div>
+          
+          <p>Humidity: HUM %</p>
+          <div class="bar-container">
+            <div class="bar hum" style="width: HUM%;"></div>
+            <div class="bar-text">HUM %</div>
+          </div>
+        </div>
+
       </body>
     </html>
   )";
@@ -67,12 +120,18 @@ void sendHtml() {
   float temperature = dht.readTemperature();
   float humidity = dht.readHumidity();
 
+  // Default values if sensor readings fail
   if (isnan(temperature) || isnan(humidity)) {
-    response.replace("TEMP", "N/A");
-    response.replace("HUM", "N/A");
+    response.replace("TEMP", "0");  // Fail safe for temperature
+    response.replace("HUM", "0");   // Fail safe for humidity
   } else {
-    response.replace("TEMP", String(temperature));
-    response.replace("HUM", String(humidity));
+    // Ensure the temperature and humidity stay within a reasonable range for display
+    int tempPercentage = constrain(temperature, 0, 100);  // Limit temp to 0-100°C
+    int humPercentage = constrain(humidity, 0, 100);      // Limit hum to 0-100%
+
+    // Replace placeholders with temperature and humidity values as percentages
+    response.replace("TEMP", String(tempPercentage));
+    response.replace("HUM", String(humPercentage));
   }
 
   // Update LED states in the HTML response
