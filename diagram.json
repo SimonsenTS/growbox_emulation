@@ -37,7 +37,7 @@
       "type": "wokwi-rgb-led",
       "id": "rgb1",
       "top": -216.8,
-      "left": -94.9,
+      "left": 125.9,
       "attrs": { "common": "anode" }
     },
     { "type": "wokwi-potentiometer", "id": "pot1", "top": -212.5, "left": -336.2, "attrs": {} },
@@ -45,7 +45,7 @@
     { "type": "wokwi-gnd", "id": "gnd2", "top": 230.4, "left": -96.6, "attrs": {} },
     { "type": "wokwi-gnd", "id": "gnd3", "top": -19.2, "left": 277.8, "attrs": {} },
     { "type": "wokwi-vcc", "id": "vcc1", "top": -229.64, "left": 211.2, "attrs": {} },
-    { "type": "wokwi-vcc", "id": "vcc2", "top": -229.64, "left": -134.4, "attrs": {} },
+    { "type": "wokwi-vcc", "id": "vcc2", "top": -210.44, "left": 96, "attrs": {} },
     { "type": "wokwi-vcc", "id": "vcc3", "top": 221.56, "left": 19.2, "attrs": {} },
     { "type": "wokwi-gnd", "id": "gnd4", "top": -96, "left": -317.4, "attrs": {} },
     { "type": "wokwi-vcc", "id": "vcc4", "top": -210.44, "left": -240, "attrs": {} }
@@ -68,9 +68,9 @@
     [ "pot1:GND", "gnd4:GND", "black", [ "v0" ] ],
     [ "pot1:VCC", "vcc4:VCC", "red", [ "v38.4", "h56.8" ] ],
     [ "pot1:SIG", "esp:33", "blue", [ "v172.8", "h143.6", "v67.2" ] ],
-    [ "rgb1:G", "esp:VN", "green", [ "v230.4", "h68.35" ] ],
-    [ "rgb1:B", "esp:34", "cyan", [ "v240", "h59.05" ] ],
-    [ "rgb1:R", "esp:VP", "magenta", [ "v0" ] ]
+    [ "rgb1:R", "esp:23", "magenta", [ "v0" ] ],
+    [ "rgb1:G", "esp:22", "green", [ "v0" ] ],
+    [ "rgb1:B", "esp:21", "cyan", [ "v0" ] ]
   ],
   "dependencies": {}
 }

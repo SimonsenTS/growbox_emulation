@@ -25,17 +25,21 @@ const int LED1 = 26;
 const int LED2 = 27;
 
 // RGB LED pins
-const int RED_PIN = 36;
-const int GREEN_PIN = 39;
-const int BLUE_PIN = 34;
+const int RED_PIN = 23;
+const int GREEN_PIN = 22;
+const int BLUE_PIN = 21;
 
 // LED states
 bool led1State = false;
 bool led2State = false;
 
+// Global variables to store RGB values for HTML update
+int redValue = 0, greenValue = 0, blueValue = 0;
+
 // Function prototypes
 void sendHtml();
 void toggleLED(int ledNumber);
+void updateSoilMoistureColor(int soilPercentage);
 
 // Function to send HTML content to the web server
 void sendHtml() {
@@ -55,24 +59,16 @@ void sendHtml() {
           .btn.OFF { background-color: #333; }
 
           html { font-family: sans-serif; text-align: center; }
-          /* Add CSS styles here */
-          /* Styles for the new soil moisture bar */
-          .bar.soil {
-            background-color: #4CAF50; /* Green for soil moisture */
-          }
-
-          /* Bar container style */
+          .bar.soil { background-color: #4CAF50; }
           .bar-container {
             width: 100%;
-            background-color: #ddd; /* Grey background */
+            background-color: #ddd;
             margin: 1em 0;
             border-radius: 10px;
             overflow: hidden;
             height: 30px;
             position: relative;
           }
-          
-          /* Base style for bars */
           .bar {
             height: 100%;
             position: absolute;
@@ -81,15 +77,10 @@ void sendHtml() {
             text-align: center;
             color: white;
             line-height: 30px;
-            width: 0; /* Initially 0, will be updated */
+            width: 0;
           }
-          /* Specific bar colors */
-          .bar.temp {
-            background-color: #2196F3; /* Blue for temperature */
-          }
-          .bar.hum {
-            background-color: #FFC107; /* Yellow for humidity */
-          }
+          .bar.temp { background-color: #2196F3; }
+          .bar.hum { background-color: #FFC107; }
           .bar-text {
             position: absolute;
             width: 100%;
@@ -99,8 +90,6 @@ void sendHtml() {
             color: black;
             font-weight: bold;
           }
-
-          /* RGB LED Box */
           .rgb-box {
             border: 2px solid #333;
             padding: 1em;
@@ -159,47 +148,58 @@ void sendHtml() {
     </html>
   )";
 
-  // Reading temperature and humidity from the DHT sensor
   float temperature = dht.readTemperature();
   float humidity = dht.readHumidity();
   int soilMoisture = analogRead(SOIL_SENSOR_PIN);
-
-  // Calculate soil moisture percentage (map analog value to 0-100%)
   int soilPercentage = map(soilMoisture, 0, 4095, 0, 100);
 
-  // Default values if sensor readings fail
   if (isnan(temperature) || isnan(humidity)) {
-    response.replace("TEMP", "0");  // Fail safe for temperature
-    response.replace("HUM", "0");   // Fail safe for humidity
+    response.replace("TEMP", "0");
+    response.replace("HUM", "0");
   } else {
-    int tempPercentage = constrain(temperature, 0, 100);  // Limit temp to 0-100°C
-    int humPercentage = constrain(humidity, 0, 100);      // Limit hum to 0-100%
+    int tempPercentage = constrain(temperature, 0, 100);
+    int humPercentage = constrain(humidity, 0, 100);
     response.replace("TEMP", String(tempPercentage));
     response.replace("HUM", String(humPercentage));
     response.replace("SOIL", String(soilPercentage));
+
+    // Update RGB color based on soil percentage and store values
+    updateSoilMoistureColor(soilPercentage);
+    response.replace("SOIL", String(soilPercentage));
   }
-
-  // RGB values from pins
-  int redVal = analogRead(RED_PIN); // Read Red value
-  int greenVal = analogRead(GREEN_PIN); // Read Green value
-  int blueVal = analogRead(BLUE_PIN); // Read Blue value
-  
-  // Normalize RGB values to 0-255 range for display
-  int redPercentage = map(redVal, 0, 4095, 0, 255);
-  int greenPercentage = map(greenVal, 0, 4095, 0, 255);
-  int bluePercentage = map(blueVal, 0, 4095, 0, 255);
-
-  // Update RGB values in the HTML
-  response.replace("R_VAL", String(redPercentage));
-  response.replace("G_VAL", String(greenPercentage));
-  response.replace("B_VAL", String(bluePercentage));
 
   // Update LED states in the HTML response
   response.replace("LED1_TEXT", led1State ? "ON" : "OFF");
   response.replace("LED2_TEXT", led2State ? "ON" : "OFF");
-  
-  // Send the HTML response to the client
+
+  // Replace RGB values in HTML
+  response.replace("R_VAL", String(redValue));
+  response.replace("G_VAL", String(greenValue));
+  response.replace("B_VAL", String(blueValue));
+
   server.send(200, "text/html", response);
+}
+
+// Set RGB color based on soil moisture percentage
+void updateSoilMoistureColor(int soilPercentage) {
+  if (soilPercentage < 20) {         // Dry: Red
+    redValue = 255;
+    greenValue = 0;
+    blueValue = 0;
+  } else if (soilPercentage <= 60) { // Moist: Orange
+    redValue = 255;
+    greenValue = 165; 
+    blueValue = 0;
+  } else {                           // Wet: Green
+    redValue = 0;
+    greenValue = 255;
+    blueValue = 0;
+  }
+
+  // Update RGB LED with PWM values
+  analogWrite(RED_PIN, redValue);
+  analogWrite(GREEN_PIN, greenValue);
+  analogWrite(BLUE_PIN, blueValue);
 }
 
 // Toggle LED based on the request
@@ -227,10 +227,10 @@ void setup(void) {
   pinMode(LED1, OUTPUT);
   pinMode(LED2, OUTPUT);
   
-  // Initialize RGB pins as inputs
-  pinMode(RED_PIN, INPUT);
-  pinMode(GREEN_PIN, INPUT);
-  pinMode(BLUE_PIN, INPUT);
+  // Initialize RGB pins as outputs
+  pinMode(RED_PIN, OUTPUT);
+  pinMode(GREEN_PIN, OUTPUT);
+  pinMode(BLUE_PIN, OUTPUT);
 
   // Connect to WiFi
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD, WIFI_CHANNEL);
@@ -267,6 +267,17 @@ void setup(void) {
   // Start the web server
   server.begin();
   Serial.println("HTTP server started (http://localhost:8180)");
+  
+  // Add this line in setup() after defining other routes
+  server.onNotFound([]() {
+    Serial.print("Unhandled request for: ");
+    Serial.println(server.uri());
+    server.send(404, "text/plain", "404: Not Found");
+  });
+
+  server.on("/favicon.ico", []() {
+    server.send(204);  // 204 No Content: a minimal response to satisfy the request
+});
 }
 
 // Main loop function
