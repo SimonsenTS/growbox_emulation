@@ -22,9 +22,9 @@ const int LED1 = 26;
 const int LED2 = 27;
 
 // RGB LED pins
-const int RED_PIN = 23;
-const int GREEN_PIN = 22;
-const int BLUE_PIN = 21;
+const int RED_PIN = 36;
+const int GREEN_PIN = 39;
+const int BLUE_PIN = 34;
 
 // LED states
 bool led1State = false;
