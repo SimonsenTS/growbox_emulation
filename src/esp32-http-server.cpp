@@ -14,6 +14,9 @@
 #define DHTTYPE DHT22
 DHT dht(DHTPIN, DHTTYPE);
 
+// Define the soil sensor pin
+#define SOIL_SENSOR_PIN 33
+
 // Server setup
 WebServer server(80);
 
@@ -39,7 +42,7 @@ void sendHtml() {
   String response = R"(
     <!DOCTYPE html><html>
       <head>
-        <title>ESP32 Web Server Demo</title>
+        <title>GrowBox Web Server</title>
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <style>
           html { font-family: sans-serif; text-align: center; }
@@ -51,6 +54,13 @@ void sendHtml() {
                  font-size: 2em; text-decoration: none }
           .btn.OFF { background-color: #333; }
 
+          html { font-family: sans-serif; text-align: center; }
+          /* Add CSS styles here */
+          /* Styles for the new soil moisture bar */
+          .bar.soil {
+            background-color: #4CAF50; /* Green for soil moisture */
+          }
+
           /* Bar container style */
           .bar-container {
             width: 100%;
@@ -61,6 +71,7 @@ void sendHtml() {
             height: 30px;
             position: relative;
           }
+          
           /* Base style for bars */
           .bar {
             height: 100%;
@@ -105,7 +116,7 @@ void sendHtml() {
       </head>
             
       <body>
-        <h1>ESP32 Web Server</h1>
+        <h1>GrowBox Web Server</h1>
 
         <div>
           <h2>LED 1</h2>
@@ -127,6 +138,14 @@ void sendHtml() {
             <div class="bar-text">HUM %</div>
           </div>
         </div>
+        
+        <div>
+          <p>Soil Moisture: SOIL %</p>
+          <div class="bar-container">
+            <div class="bar soil" style="width: SOIL%;"></div>
+            <div class="bar-text">SOIL %</div>
+          </div>
+        </div>
 
         <div class="rgb-box">
           <h2>RGB LED</h2>
@@ -143,6 +162,10 @@ void sendHtml() {
   // Reading temperature and humidity from the DHT sensor
   float temperature = dht.readTemperature();
   float humidity = dht.readHumidity();
+  int soilMoisture = analogRead(SOIL_SENSOR_PIN);
+
+  // Calculate soil moisture percentage (map analog value to 0-100%)
+  int soilPercentage = map(soilMoisture, 0, 4095, 0, 100);
 
   // Default values if sensor readings fail
   if (isnan(temperature) || isnan(humidity)) {
@@ -153,6 +176,7 @@ void sendHtml() {
     int humPercentage = constrain(humidity, 0, 100);      // Limit hum to 0-100%
     response.replace("TEMP", String(tempPercentage));
     response.replace("HUM", String(humPercentage));
+    response.replace("SOIL", String(soilPercentage));
   }
 
   // RGB values from pins
