@@ -280,7 +280,7 @@ void setup(void) {
 });
 }
 
-// Main loop function
+// Main loop function.
 void loop(void) {
   // Handle client requests
   server.handleClient();
