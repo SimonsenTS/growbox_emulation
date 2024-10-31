@@ -56,25 +56,39 @@ void sendHtml() {
           body { display: inline-flex; flex-direction: column; }
           h1 { margin-bottom: 1.2em; } 
           h2 { margin: 0; }
-          div { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto auto; grid-auto-flow: column; grid-gap: 1em; }
-          .btn { background-color: #5B5; border: none; color: #fff; padding: 0.5em 1em;
-                 font-size: 2em; text-decoration: none }
-          .btn.OFF { background-color: #333; }
+          
+          div { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            grid-template-rows: auto auto; 
+            grid-auto-flow: column; 
+            grid-gap: 1em; 
+          }
+          
+          p.label { 
+            margin-bottom: 0.1em; /* Reduced margin below labels to bring them closer to the bars. */
+            font-weight: bold; 
+          }
 
           html { font-family: sans-serif; text-align: center; }
           .bar.soil { background-color: #4CAF50; }
           .bar.temp { background-color: #F03333; }
           .bar.hum { background-color: #FFC107; }
           .bar.water { background-color: #2487DD; }
+          .btn { background-color: #5B5; border: none; color: #fff; padding: 0.5em 1em;
+                 font-size: 2em; text-decoration: none }
+          .btn.OFF { background-color: #333; }
           
           .bar-container {
             width: 100%;
             background-color: #ddd;
-            margin: 1em 0;
+            margin: 0.5em 0;          /* spacing around the container */
             border-radius: 10px;
             overflow: hidden;
             height: 30px;
             position: relative;
+            //display: flex;            /* Text and bar to align vertically */
+            //align-items: center;      /* Centers text vertically with the bar */
           }
 
           .bar {
@@ -96,6 +110,7 @@ void sendHtml() {
             line-height: 30px;
             color: black;
             font-weight: bold;
+            //margin: 0;                /* Remove extra spacing */
           }
 
           .rgb-box {
@@ -124,13 +139,13 @@ void sendHtml() {
         </div>
 
         <div>
-          <p>Temperature: TEMP &deg;C</p>
+          <p class="label">Temperature: TEMP &deg;C</p>
           <div class="bar-container">
             <div class="bar temp" style="width: TEMP%;"></div>
             <div class="bar-text">TEMP &deg;C</div>
           </div>
           
-          <p>Humidity: HUM %</p>
+          <p class="label">Humidity: HUM %</p>
           <div class="bar-container">
             <div class="bar hum" style="width: HUM%;"></div>
             <div class="bar-text">HUM %</div>
@@ -138,13 +153,13 @@ void sendHtml() {
         </div>
         
         <div>
-          <p>Soil Moisture: SOIL %</p>
+          <p class="label">Soil Moisture: SOIL %</p>
           <div class="bar-container">
             <div class="bar soil" style="width: SOIL%;"></div>
             <div class="bar-text">SOIL %</div>
           </div>
 
-          <p>Water level: WATER %</p>
+          <p class="label">Water level: WATER %</p>
           <div class="bar-container">
             <div class="bar water" style="width: WATER%;"></div>
             <div class="bar-text">WATER %</div>
