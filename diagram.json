@@ -76,7 +76,7 @@
     [ "rgb1:B", "esp:21", "cyan", [ "v0" ] ],
     [ "pot2:VCC", "vcc5:VCC", "red", [ "v19.2", "h56.8" ] ],
     [ "gnd5:GND", "pot2:GND", "black", [ "v0" ] ],
-    [ "pot2:SIG", "esp:25", "green", [ "v0" ] ]
+    [ "pot2:SIG", "esp:34", "green", [ "v0" ] ]
   ],
   "dependencies": {}
 }

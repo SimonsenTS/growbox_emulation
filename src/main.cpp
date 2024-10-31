@@ -16,7 +16,7 @@ DHT dht(DHTPIN, DHTTYPE);
 
 // Define the soil sensor and water sensor pins
 #define SOIL_SENSOR_PIN 33
-#define WATER_SENSOR_PIN 25
+#define WATER_SENSOR_PIN 34
 
 // Server setup
 WebServer server(80);
@@ -41,6 +41,7 @@ int redValue = 0, greenValue = 0, blueValue = 0;
 void sendHtml();
 void toggleLED(int ledNumber);
 void updateSoilMoistureColor(int soilPercentage);
+//void updateWaterLevelColor(int waterPercentage);
 
 // Function to send HTML content to the web server
 void sendHtml() {
@@ -61,6 +62,10 @@ void sendHtml() {
 
           html { font-family: sans-serif; text-align: center; }
           .bar.soil { background-color: #4CAF50; }
+          .bar.temp { background-color: #F03333; }
+          .bar.hum { background-color: #FFC107; }
+          .bar.water { background-color: #2487DD; }
+          
           .bar-container {
             width: 100%;
             background-color: #ddd;
@@ -70,6 +75,7 @@ void sendHtml() {
             height: 30px;
             position: relative;
           }
+
           .bar {
             height: 100%;
             position: absolute;
@@ -80,8 +86,7 @@ void sendHtml() {
             line-height: 30px;
             width: 0;
           }
-          .bar.temp { background-color: #2196F3; }
-          .bar.hum { background-color: #FFC107; }
+          
           .bar-text {
             position: absolute;
             width: 100%;
@@ -91,11 +96,13 @@ void sendHtml() {
             color: black;
             font-weight: bold;
           }
+
           .rgb-box {
             border: 2px solid #333;
             padding: 1em;
             margin: 1em 0;
           }
+          
           .color-display {
             width: 100px;
             height: 100px;
