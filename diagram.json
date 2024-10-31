@@ -51,7 +51,15 @@
     { "type": "wokwi-vcc", "id": "vcc4", "top": -191.24, "left": -384, "attrs": {} },
     { "type": "wokwi-potentiometer", "id": "pot2", "top": -145.3, "left": -307.4, "attrs": {} },
     { "type": "wokwi-vcc", "id": "vcc5", "top": -191.24, "left": -211.2, "attrs": {} },
-    { "type": "wokwi-gnd", "id": "gnd5", "top": -57.6, "left": -288.6, "attrs": {} }
+    { "type": "wokwi-gnd", "id": "gnd5", "top": -57.6, "left": -288.6, "attrs": {} },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn1",
+      "top": 159.8,
+      "left": -384,
+      "attrs": { "color": "green" }
+    },
+    { "type": "wokwi-gnd", "id": "gnd6", "top": 249.6, "left": -423, "attrs": {} }
   ],
   "connections": [
     [ "esp:TX", "$serialMonitor:RX", "", [] ],
@@ -76,7 +84,9 @@
     [ "rgb1:B", "esp:21", "cyan", [ "v0" ] ],
     [ "pot2:VCC", "vcc5:VCC", "red", [ "v19.2", "h56.8" ] ],
     [ "gnd5:GND", "pot2:GND", "black", [ "v0" ] ],
-    [ "pot2:SIG", "esp:34", "green", [ "v0" ] ]
+    [ "pot2:SIG", "esp:34", "green", [ "v0" ] ],
+    [ "btn1:2.l", "gnd6:GND", "green", [ "h0" ] ],
+    [ "btn1:1.r", "esp:32", "green", [ "h48.2", "v-86.4" ] ]
   ],
   "dependencies": {}
 }

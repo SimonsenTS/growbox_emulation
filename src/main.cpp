@@ -14,15 +14,16 @@
 #define DHTTYPE DHT22
 DHT dht(DHTPIN, DHTTYPE);
 
-// Define the soil sensor and water sensor pins
+// Define the soil, water sensor pins and pushButton
 #define SOIL_SENSOR_PIN 33
 #define WATER_SENSOR_PIN 34
+#define BUTTON_PIN 32
 
 // Server setup
 WebServer server(80);
 
 // LED pins
-const int LED1 = 26;
+const int PUMP = 26;
 const int LED2 = 27;
 
 // RGB LED pins
@@ -30,8 +31,8 @@ const int RED_PIN = 23;
 const int GREEN_PIN = 22;
 const int BLUE_PIN = 21;
 
-// LED states
-bool led1State = false;
+// LED and pump states
+bool pumpState = false;
 bool led2State = false;
 
 // Global variables to store RGB values for HTML update
@@ -39,7 +40,7 @@ int redValue = 0, greenValue = 0, blueValue = 0;
 
 // Function prototypes
 void sendHtml();
-void toggleLED(int ledNumber);
+void toggleBUTTON(int buttonNumber);
 void updateSoilMoistureColor(int soilPercentage);
 //void updateWaterLevelColor(int waterPercentage);
 
@@ -116,8 +117,8 @@ void sendHtml() {
         <h1>GrowBox Web Server</h1>
 
         <div>
-          <h2>LED 1</h2>
-          <a href="/toggle/1" class="btn LED1_TEXT">LED1_TEXT</a>
+          <h2>Pump</h2>
+          <a href="/toggle/1" class="btn PUMP_TEXT">PUMP_TEXT</a>
           <h2>LED 2</h2>
           <a href="/toggle/2" class="btn LED2_TEXT">LED2_TEXT</a>
         </div>
@@ -169,6 +170,11 @@ void sendHtml() {
   int waterLevel = analogRead(WATER_SENSOR_PIN);
   int waterPercentage = map(waterLevel, 0, 4095, 0, 100);
 
+  if (soilPercentage > 80) {
+    pumpState = false;               // Set PUMP state to OFF
+    digitalWrite(PUMP, pumpState);   // Stop the pump
+  }
+
   if (isnan(temperature) || isnan(humidity)) {
     response.replace("TEMP", "0");
     response.replace("HUM", "0");
@@ -182,11 +188,10 @@ void sendHtml() {
 
     // Update RGB color based on soil percentage and store values
     updateSoilMoistureColor(soilPercentage);
-    response.replace("SOIL", String(soilPercentage));
   }
 
   // Update LED states in the HTML response
-  response.replace("LED1_TEXT", led1State ? "ON" : "OFF");
+  response.replace("PUMP_TEXT", pumpState ? "ON" : "OFF");
   response.replace("LED2_TEXT", led2State ? "ON" : "OFF");
 
   // Replace RGB values in HTML
@@ -220,11 +225,11 @@ void updateSoilMoistureColor(int soilPercentage) {
 }
 
 // Toggle LED based on the request
-void toggleLED(int ledNumber) {
-  switch (ledNumber) {
+void toggleBUTTON(int buttonNumber) {
+  switch (buttonNumber) {
     case 1:
-      led1State = !led1State;
-      digitalWrite(LED1, led1State);
+      pumpState = !pumpState;
+      digitalWrite(PUMP, pumpState);
       break;
     case 2:
       led2State = !led2State;
@@ -239,9 +244,13 @@ void setup(void) {
 
   // Initialize the DHT sensor
   dht.begin();
+
+  // Initialize pushButton as input with pull-up
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+  pinMode(PUMP, OUTPUT);
   
   // Initialize LED pins as outputs
-  pinMode(LED1, OUTPUT);
+  pinMode(PUMP, OUTPUT);
   pinMode(LED2, OUTPUT);
   
   // Initialize RGB pins as outputs
@@ -268,13 +277,13 @@ void setup(void) {
   // Set up server routes
   server.on("/", sendHtml);
 
-  // Handle LED toggling via web interface
+  // Handle BUTTON toggling via web interface
   server.on(UriBraces("/toggle/{}"), []() {
     String led = server.pathArg(0);
-    Serial.print("Toggle LED #");
+    Serial.print("Toggle PUMP");
     Serial.println(led);
 
-    toggleLED(led.toInt());
+    toggleBUTTON(led.toInt());
 
     // After toggling the LED, redirect back to the main page
     server.sendHeader("Location", "/");  // Redirect to home page
@@ -299,6 +308,14 @@ void setup(void) {
 
 // Main loop function.
 void loop(void) {
+
+  // Check if the button is pressed
+  if (digitalRead(BUTTON_PIN) == LOW) {  // LOW means pressed
+    pumpState = !pumpState;  // Toggle PUMP state
+    digitalWrite(PUMP, pumpState);
+    delay(200);  // Debounce delay
+  }
+
   // Handle client requests
   server.handleClient();
   delay(2);
