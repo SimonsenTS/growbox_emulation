@@ -22,9 +22,9 @@ DHT dht(DHTPIN, DHTTYPE);
 // Server setup
 WebServer server(80);
 
-// LED pins
+// LED and pins
 const int PUMP = 26;
-const int LED2 = 27;
+const int GROWLED = 27;
 
 // RGB LED pins
 const int RED_PIN = 23;
@@ -33,7 +33,7 @@ const int BLUE_PIN = 21;
 
 // LED and pump states
 bool pumpState = false;
-bool led2State = false;
+bool growLedState = false;
 
 // Global variables to store RGB values for HTML update
 int redValue = 0, greenValue = 0, blueValue = 0;
@@ -72,7 +72,7 @@ void sendHtml() {
 
           html { font-family: sans-serif; text-align: center; }
           .bar.soil { background-color: #4CAF50; }
-          .bar.temp { background-color: #F03333; }
+          .bar.temp { background-color: #F5532f; }
           .bar.hum { background-color: #FFC107; }
           .bar.water { background-color: #2487DD; }
           .btn { background-color: #5B5; border: none; color: #fff; padding: 0.5em 1em;
@@ -110,7 +110,7 @@ void sendHtml() {
             line-height: 30px;
             color: black;
             font-weight: bold;
-            //margin: 0;                /* Remove extra spacing */
+            margin: 0;                /* Remove extra spacing */
           }
 
           .rgb-box {
@@ -134,8 +134,8 @@ void sendHtml() {
         <div>
           <h2>Pump</h2>
           <a href="/toggle/1" class="btn PUMP_TEXT">PUMP_TEXT</a>
-          <h2>LED 2</h2>
-          <a href="/toggle/2" class="btn LED2_TEXT">LED2_TEXT</a>
+          <h2>Grow LED</h2>
+          <a href="/toggle/2" class="btn GrowLED">GrowLED</a>
         </div>
 
         <div>
@@ -207,7 +207,7 @@ void sendHtml() {
 
   // Update LED states in the HTML response
   response.replace("PUMP_TEXT", pumpState ? "ON" : "OFF");
-  response.replace("LED2_TEXT", led2State ? "ON" : "OFF");
+  response.replace("GrowLED", growLedState ? "ON" : "OFF");
 
   // Replace RGB values in HTML
   response.replace("R_VAL", String(redValue));
@@ -247,8 +247,8 @@ void toggleBUTTON(int buttonNumber) {
       digitalWrite(PUMP, pumpState);
       break;
     case 2:
-      led2State = !led2State;
-      digitalWrite(LED2, led2State);
+      growLedState = !growLedState;
+      digitalWrite(GROWLED, growLedState);
       break;
   }
 }
@@ -266,7 +266,7 @@ void setup(void) {
   
   // Initialize LED pins as outputs
   pinMode(PUMP, OUTPUT);
-  pinMode(LED2, OUTPUT);
+  pinMode(GROWLED, OUTPUT);
   
   // Initialize RGB pins as outputs
   pinMode(RED_PIN, OUTPUT);
@@ -294,11 +294,11 @@ void setup(void) {
 
   // Handle BUTTON toggling via web interface
   server.on(UriBraces("/toggle/{}"), []() {
-    String led = server.pathArg(0);
-    Serial.print("Toggle PUMP");
-    Serial.println(led);
+    String button = server.pathArg(0);
+    Serial.print("Toggle BUTTON");
+    Serial.println(button);
 
-    toggleBUTTON(led.toInt());
+    toggleBUTTON(button.toInt());
 
     // After toggling the LED, redirect back to the main page
     server.sendHeader("Location", "/");  // Redirect to home page
