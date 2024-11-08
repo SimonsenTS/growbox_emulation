@@ -7,6 +7,8 @@
 // WiFi configuration
 #define WIFI_SSID "Wokwi-GUEST"
 #define WIFI_PASSWORD ""
+//#define WIFI_SSID "Thomas"
+//#define WIFI_PASSWORD "Kdawg123"
 #define WIFI_CHANNEL 6
 
 // DHT sensor configuration

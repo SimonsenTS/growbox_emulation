@@ -32,7 +32,7 @@
       "left": -245.8,
       "attrs": { "color": "green" }
     },
-    { "type": "wokwi-dht22", "id": "dht1", "top": -162.9, "left": 244.2, "attrs": {} },
+    { "type": "wokwi-dht22", "id": "dht1", "top": -153.3, "left": 407.4, "attrs": {} },
     {
       "type": "wokwi-rgb-led",
       "id": "rgb1",
@@ -41,17 +41,17 @@
       "attrs": { "common": "anode" }
     },
     { "type": "wokwi-potentiometer", "id": "pot1", "top": -145.3, "left": -470.6, "attrs": {} },
-    { "type": "wokwi-gnd", "id": "gnd1", "top": 240, "left": -240.6, "attrs": {} },
-    { "type": "wokwi-gnd", "id": "gnd2", "top": 230.4, "left": -96.6, "attrs": {} },
-    { "type": "wokwi-gnd", "id": "gnd3", "top": -19.2, "left": 277.8, "attrs": {} },
-    { "type": "wokwi-vcc", "id": "vcc1", "top": -229.64, "left": 211.2, "attrs": {} },
-    { "type": "wokwi-vcc", "id": "vcc2", "top": -210.44, "left": 96, "attrs": {} },
+    { "type": "wokwi-gnd", "id": "gnd1", "top": 249.6, "left": -240.6, "attrs": {} },
+    { "type": "wokwi-gnd", "id": "gnd2", "top": 249.6, "left": -96.6, "attrs": {} },
+    { "type": "wokwi-gnd", "id": "gnd3", "top": -19.2, "left": 441, "attrs": {} },
+    { "type": "wokwi-vcc", "id": "vcc1", "top": -220.04, "left": 384, "attrs": {} },
+    { "type": "wokwi-vcc", "id": "vcc2", "top": -220.04, "left": 96, "attrs": {} },
     { "type": "wokwi-vcc", "id": "vcc3", "top": 221.56, "left": 19.2, "attrs": {} },
-    { "type": "wokwi-gnd", "id": "gnd4", "top": -48, "left": -471, "attrs": {} },
+    { "type": "wokwi-gnd", "id": "gnd4", "top": -48, "left": -451.8, "attrs": {} },
     { "type": "wokwi-vcc", "id": "vcc4", "top": -191.24, "left": -384, "attrs": {} },
     { "type": "wokwi-potentiometer", "id": "pot2", "top": -145.3, "left": -307.4, "attrs": {} },
     { "type": "wokwi-vcc", "id": "vcc5", "top": -191.24, "left": -211.2, "attrs": {} },
-    { "type": "wokwi-gnd", "id": "gnd5", "top": -57.6, "left": -288.6, "attrs": {} },
+    { "type": "wokwi-gnd", "id": "gnd5", "top": -48, "left": -288.6, "attrs": {} },
     {
       "type": "wokwi-pushbutton",
       "id": "btn1",
@@ -59,7 +59,31 @@
       "left": -384,
       "attrs": { "color": "green" }
     },
-    { "type": "wokwi-gnd", "id": "gnd6", "top": 249.6, "left": -423, "attrs": {} }
+    { "type": "wokwi-gnd", "id": "gnd6", "top": 249.6, "left": -423, "attrs": {} },
+    {
+      "type": "wokwi-slide-potentiometer",
+      "id": "pot3",
+      "top": -359.8,
+      "left": 181.4,
+      "attrs": { "travelLength": "30" }
+    },
+    { "type": "wokwi-vcc", "id": "vcc7", "top": -383.24, "left": 163.2, "attrs": {} },
+    { "type": "wokwi-gnd", "id": "gnd7", "top": -297.6, "left": 393, "attrs": {} },
+    {
+      "type": "wokwi-led",
+      "id": "led3",
+      "top": -205.2,
+      "left": 186.2,
+      "attrs": { "color": "red" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r3",
+      "top": 109.55,
+      "left": 134.4,
+      "attrs": { "value": "1000" }
+    },
+    { "type": "wokwi-gnd", "id": "gnd8", "top": -144, "left": 191.4, "attrs": {} }
   ],
   "connections": [
     [ "esp:TX", "$serialMonitor:RX", "", [] ],
@@ -86,7 +110,13 @@
     [ "gnd5:GND", "pot2:GND", "black", [ "v0" ] ],
     [ "pot2:SIG", "esp:34", "green", [ "v0" ] ],
     [ "btn1:2.l", "gnd6:GND", "green", [ "h0" ] ],
-    [ "btn1:1.r", "esp:32", "green", [ "h48.2", "v-86.4" ] ]
+    [ "btn1:1.r", "esp:32", "green", [ "h48.2", "v-86.4" ] ],
+    [ "pot3:SIG", "esp:12", "green", [ "h-288", "v316" ] ],
+    [ "pot3:VCC", "vcc7:VCC", "red", [ "h0" ] ],
+    [ "gnd7:GND", "pot3:GND", "black", [ "v0" ] ],
+    [ "led3:C", "gnd8:GND", "green", [ "v0" ] ],
+    [ "led3:A", "r3:2", "green", [ "v9.6", "h0", "v249.6" ] ],
+    [ "r3:1", "esp:5", "green", [ "v0" ] ]
   ],
   "dependencies": {}
 }
