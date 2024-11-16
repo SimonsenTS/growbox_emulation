@@ -37,7 +37,7 @@ const int BLUE_PIN = 21;
 // LED and pump states
 bool pumpState = false;
 bool growLedState = false;
-int lastBrightness = 0;  // Stores the last known brightness for growLED level
+int lastBrightness = 0;           // Stores the last known brightness for growLED level
 
 // Global variables to store RGB values for HTML update
 int redValue = 0, greenValue = 0, blueValue = 0;
@@ -56,207 +56,234 @@ void sendHtml() {
       <head>
         <title>GrowBox Web Server</title>
         <meta name="viewport" content="width=device-width, initial-scale=1">
-          <style>
-            html { 
-              font-family: sans-serif; 
-              text-align: center; 
-            }
-            
-            body { 
-              display: flex; 
-              flex-direction: column;
-              align-items: center; 
-            }
-            
-            h1 { 
-              margin-bottom: 1.2em; 
-            } 
-            
-            h2 { 
-              margin: 0; 
-            }
-            
-            div { 
-              display: grid; 
-              grid-template-columns: 1fr 1fr; 
-              grid-template-rows: auto auto; 
-              grid-auto-flow: column; 
-              grid-gap: 1em; 
-            }
-            
-            p.label { 
-              margin-bottom: 0.1em;       /* Reduced margin below labels to bring them closer to the bars. */
-              font-weight: bold; 
-            }
+        <style>
+          html {
+            font-family: sans-serif;
+            text-align: center;
+          }
 
-            html { font-family: sans-serif; text-align: center; }
-            .bar.soil { background-color: #4CAF50; }
-            .bar.temp { background-color: #F5532f; }
-            .bar.hum { background-color: #FFC107; }
-            .bar.water { background-color: #2487DD; }
-            .btn {
-                    background-color: #5B5; 
-                    border: none; 
-                    color: #fff; 
-                    padding: 0.5em 1em;
-                    font-size: 2em; 
-                    text-decoration: none 
-                    }
-            .btn.OFF { background-color: #333; }
-            .slider-container { 
-                    margin-top: 20px; 
-                    margin: 1em 0;
-                    width: 100%; 
-                    }
-            /*.slider-label { 
-                    font-weight: bold; 
-                    margin-bottom: 5px; 
-                    }*/
+          body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+          }
+
+          h1 {
+            margin-bottom: 1.2em;
+          }
+
+          h2 {
+            margin: 0;
+          }
+
+          div {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto auto;
+            grid-auto-flow: column;
+            grid-gap: 1em;
+          }
+
+          p.label {
+            margin-bottom: 0.1em;       /* Reduced margin below labels to bring them closer to the bars. */
+            font-weight: bold;
+          }
+
+          html {
+            font-family: sans-serif;
+            text-align: center;
+          }
+
+          /* General container alignment */
+          .container {
+            width: 100%;                /* Responsive */
+            max-width: 450px;           /* Consistent width for all elements */
+            margin: 0 auto;             /* Center align */
+            text-align: center;
+          }
+
+          .bar.soil {
+            background-color: #4caf50;
+          }
+          .bar.temp {
+            background-color: #f5532f;
+          }
+          .bar.hum {
+            background-color: #ffc107;
+          }
+          .bar.water {
+            background-color: #2487dd;
+          }
+
+          /* Buttons */
+          .btn {
+            //display: block;           /* Make buttons take up the full width */
+            //width: 100%;              /* Match container width */
+            padding: 1em;               /* Add padding for larger button appearance */
+            font-size: 1.2em;           /* Adjust font size */
+            margin: 0.5em 0;            /* Add spacing between buttons */
+            background-color: #5b5;     /* Default green color */
+            border: none;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 10px;
+          }
+          
+          .btn.OFF {
+            background-color: #333;
+          }
+
+          .bar-container {
+            width: 100%;
+            background-color: #ddd;
+            margin: 0.5em 0;            /* spacing around the container */
+            border-radius: 10px;
+            overflow: hidden;
+            height: 30px;
+            position: relative;
+            //display: flex;            /* Text and bar to align vertically */
+            //align-items: center;      /* Centers text vertically with the bar */
+          }
+
+          .bar {
+            height: 100%;
+            position: absolute;
+            left: 0;
+            top: 0;
+            text-align: center;
+            color: white;
+            line-height: 30px;
+            width: 0;
+          }
+
+          .bar-text {
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            z-index: 1;
+            line-height: 30px;
+            color: black;
+            font-weight: bold;
+            margin: 0;                  /* Remove extra spacing */
+          }
+
+          /* RGB Box */
+          .rgb-box {
+            border: 2px solid #333;
+            padding: 1em;
+            margin: 1em 0;
+            max-width: 400px;           /* Match other elements */
+            width: 100%;
+          }
+
+          .color-display {
+            width: 100px;
+            height: 100px;
+            background-color: rgb(R_VAL, G_VAL, B_VAL);
+            margin: 0 auto;
+          }
+
+          /* Slider Container */
+          .slider-container {
+            width: 100%;
+            max-width: 450px;         /* Limit the container width to 450px */
+            margin: 0 auto;           /* Center the container on the page */
+              
+          }
             
-            .bar-container {
-              width: 100%;
-              background-color: #ddd;
-              margin: 0.5em 0;            /* spacing around the container */
-              border-radius: 10px;
-              overflow: hidden;
-              height: 30px;
-              position: relative;
-              //display: flex;            /* Text and bar to align vertically */
-              //align-items: center;      /* Centers text vertically with the bar */
-            }
-
-            .bar {
-              height: 100%;
-              position: absolute;
-              left: 0;
-              top: 0;
-              text-align: center;
-              color: white;
-              line-height: 30px;
-              width: 0;
-            }
+          .slider-container input[type="range"] {
+            appearance: none;
+            width: 205%;
+            height: 10px;
+            background: #ddd;
+            border-radius: 5px;
+            outline: none;
+            opacity: 0.8;
+            transition: opacity 0.2s;
+            display: block;
+            margin: 0 auto;             /* Ensure the slider stays centered */
+          }
             
-            .bar-text {
-              position: absolute;
-              width: 100%;
-              text-align: center;
-              z-index: 1;
-              line-height: 30px;
-              color: black;
-              font-weight: bold;
-              margin: 0;                    /* Remove extra spacing */
-            }
+          .slider-container input[type="range"]:hover {
+            opacity: 1;                 /* Brighten on hover */
+          }
 
-            .rgb-box {
-              border: 2px solid #333;
-              padding: 1em;
-              margin: 1em 0;
-            }
-            
-            .color-display {
-              width: 100px;
-              height: 100px;
-              background-color: rgb(R_VAL, G_VAL, B_VAL);
-              margin: 0 auto;
-            }
-
-            .grid-container { 
-              display: grid; 
-              grid-template-columns: 1fr 1fr; 
-              grid-template-rows: auto auto; 
-              grid-gap: 1em; 
-              width: 100%;
-              max-width: 600px;
-              margin-bottom: 1em;
-            }
-     
-            /* ----------------- Slider bar config ------------------ */
-            .slider-container { 
-              width: 100%; 
-              max-width: 600px;
-              margin-top: 20px;
-              text-align: center;
-            }
-            
-            .slider-container input[type="range"] {
-              width: 100%;       
-              appearance: none;  
-              height: 10px;
-              background: #ddd;
-              border-radius: 5px;
-              outline: none;
-              opacity: 0.8;
-              transition: opacity .2s;
-            }
-
-            .slider-container input[type="range"]:hover {
-              opacity: 1;        /* Brighten on hover */
-            }
-
-            .slider-label {
-              font-weight: bold;
-              margin-bottom: 0.5em;
-            }
-          </style>
+          .slider-label {
+            font-weight: bold;
+            margin-bottom: 0.5em;
+          }
+        </style>
       </head>
 
       <body>
         <h1>GrowBox Web Server</h1>
 
-          <div>
-            <h2>Pump</h2>
-            <a href="/toggle/1" class="btn PUMP_TEXT">PUMP_TEXT</a>
-            <h2>Grow LED</h2>
-            <a href="/toggle/2" class="btn GrowLED">GrowLED</a>
+        <!-- Buttons -->
+        <div class="container">
+          <h2>Pump</h2>
+          <a href="/toggle/1" class="btn PUMP_TEXT">PUMP_TEXT</a>
+          <h2>Grow LED</h2>
+          <a href="/toggle/2" class="btn GrowLED">GrowLED</a>
+        </div>
+
+        <!-- Bars -->
+        <div class="container">
+          <p class="label">Temperature: TEMP &deg;C</p>
+          <div class="bar-container">
+            <div class="bar temp" style="width: TEMP%"></div>
+            <div class="bar-text">TEMP &deg;C</div>
           </div>
 
-          <div>
-            <p class="label">Temperature: TEMP &deg;C</p>
-            <div class="bar-container">
-              <div class="bar temp" style="width: TEMP%;"></div>
-              <div class="bar-text">TEMP &deg;C</div>
-            </div>
+          <p class="label">Humidity: HUM %</p>
+          <div class="bar-container">
+            <div class="bar hum" style="width: HUM%"></div>
+            <div class="bar-text">HUM %</div>
+          </div>
+        </div>
 
-            <p class="label">Humidity: HUM %</p>
-            <div class="bar-container">
-              <div class="bar hum" style="width: HUM%;"></div>
-              <div class="bar-text">HUM %</div>
-            </div>
+        <div class="container">
+          <p class="label">Soil Moisture: SOIL %</p>
+          <div class="bar-container">
+            <div class="bar soil" style="width: SOIL%"></div>
+            <div class="bar-text">SOIL %</div>
           </div>
 
-          <div>
-            <p class="label">Soil Moisture: SOIL %</p>
-            <div class="bar-container">
-              <div class="bar soil" style="width: SOIL%;"></div>
-              <div class="bar-text">SOIL %</div>
-            </div>
+          <p class="label">Water Level: WATER %</p>
+          <div class="bar-container">
+            <div class="bar water" style="width: WATER%"></div>
+            <div class="bar-text">WATER %</div>
+          </div>
+        </div>
 
-            <p class="label">Water level: WATER %</p>
-            <div class="bar-container">
-              <div class="bar water" style="width: WATER%;"></div>
-              <div class="bar-text">WATER %</div>
-            </div>
-          </div>
+        <!-- Slider -->
+        <div class="slider-container">
+          <p class="slider-label">
+            Brightness: <span id="brightnessValue">BRIGHTNESS%</span>
+          </p>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value="BRIGHTNESS"
+            oninput=updateBrightness(this.value)
+          />
+        </div>
 
-          <div class="rgb-box">
-            <h2>RGB LED</h2>
-            <div class="color-display"></div>
-            <p>Red: R_VAL</p>
-            <p>Green: G_VAL</p>
-            <p>Blue: B_VAL</p>
-          </div>
-          
-          <div class="slider-container">
-            <p class="slider-label">Brightness: <span id="brightnessValue">0%</span></p>
-            <input type="range" min="0" max="100" value="0" oninput=updateBrightness(this.value)>
-          </div>
-          
-          <script>
-            function updateBrightness(value) {
-              document.getElementById('brightnessValue').innerText = value + '%';
-              fetch(`/brightness/` + value);  // Send brightness to ESP32
-            }
-          </script>
+        <!-- RGB Box -->
+        <div class="rgb-box container">
+          <h2>RGB LED</h2>
+          <div class="color-display"></div>
+          <p>Red: R_VAL</p>
+          <p>Green: G_VAL</p>
+          <p>Blue: B_VAL</p>
+        </div>
+
+        <script>
+          function updateBrightness(value) {
+            document.getElementById("brightnessValue").innerText = value + "%";
+            fetch('/brightness/' + value); // Send brightness to ESP32
+          }
+        </script>
       </body>
     </html>
   )";
@@ -327,8 +354,8 @@ void updateSoilMoistureColor(int soilPercentage) {
 
 void updateGrowLEDBrightness(int brightness) {
   lastBrightness = brightness;
-  int pwmValue = map(brightness, 0, 100, 0, 255);  // Map brightness % to PWM range (0-255)
-  analogWrite(GROWLED_PWM, pwmValue);  // Pin 5 for growLED
+  int pwmValue = map(brightness, 0, 100, 0, 255);   // Map brightness % to PWM range (0-255)
+  analogWrite(GROWLED_PWM, pwmValue);               // Pin 5 for growLED
 }
 
 // Toggle button based on the request
@@ -394,7 +421,7 @@ void setup(void) {
 
     // After toggling the LED, redirect back to the main page
     server.sendHeader("Location", "/");  // Redirect to home page
-    server.send(303);  // 303 See Other, browser will follow the redirect
+    server.send(303);                     // 303 See Other, browser will follow the redirect
   });
 
  // Add the route for the brightness slider
@@ -402,7 +429,7 @@ void setup(void) {
     String brightnessValue = server.pathArg(0);
     int brightness = brightnessValue.toInt();
     updateGrowLEDBrightness(brightness);
-    server.send(204);  // No content response
+    server.send(204);                     // No content response
   });
 
   // Start the web server
@@ -417,7 +444,7 @@ void setup(void) {
   });
 
   server.on("/favicon.ico", []() {
-    server.send(204);  // 204 No Content: a minimal response to satisfy the request
+    server.send(204);                     // 204 No Content: a minimal response to satisfy the request
 });
 }
 
@@ -425,10 +452,10 @@ void setup(void) {
 void loop(void) {
 
   // Check if the button is pressed
-  if (digitalRead(BUTTON_PIN) == LOW) {  // LOW means pressed
-    pumpState = !pumpState;  // Toggle PUMP state
+  if (digitalRead(BUTTON_PIN) == LOW) {   // LOW means pressed
+    pumpState = !pumpState;               // Toggle PUMP state
     digitalWrite(PUMP_RELAY, pumpState);
-    delay(200);  // Debounce delay
+    delay(200);                           // Debounce delay
   }
 
   // Handle client requests
