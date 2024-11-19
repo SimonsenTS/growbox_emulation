@@ -54,6 +54,10 @@ void sendHtml() {
   <!DOCTYPE html>
     <html>
       <head>
+        <div id="time-box" class="info-box">
+          <p><strong>Time & Date:</strong> <span id="current-time"></span> | <span id="current-date"></span></p>
+        </div>
+
         <title>GrowBox Web Server</title>
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <style>
@@ -167,7 +171,7 @@ void sendHtml() {
             margin: 0;                  /* Remove extra spacing */
           }
 
-          /* RGB Box */
+          /* RGB Box ------------------------------------------ */
           .rgb-box {
             border: 2px solid #333;
             padding: 1em;
@@ -183,7 +187,7 @@ void sendHtml() {
             margin: 0 auto;
           }
 
-          /* Slider Container */
+          /* Slider Container ---------------------------------- */
           .slider-container {
             width: 100%;
             max-width: 450px;         /* Limit the container width to 450px */
@@ -212,6 +216,31 @@ void sendHtml() {
             font-weight: bold;
             margin-bottom: 0.5em;
           }
+
+        /* Time section ---------------------------------------------------- */
+
+          .info-box {
+            display: flex;                  /* Use flexbox to center content */
+            justify-content: center;      /* Horizontally center the content */
+            align-items: center;                  /* Vertically align content */
+            padding: 0.5em;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+            width: 100%;
+            max-width: 400px;
+            margin: 1em auto;           /* Center the box itself on the page */
+            text-align: center;
+            font-size: 1em;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+          }
+
+          .info-box p {
+            margin: 0;
+            font-size: 1em;
+            line-height: 1.5;
+          }
+
         </style>
       </head>
 
@@ -283,6 +312,22 @@ void sendHtml() {
             document.getElementById("brightnessValue").innerText = value + "%";
             fetch('/brightness/' + value); // Send brightness to ESP32
           }
+
+          function updateTime() {
+            const now = new Date();
+            const time = now.toLocaleTimeString();
+            const date = now.toLocaleDateString();
+
+            document.getElementById("current-time").innerText = time;
+            document.getElementById("current-date").innerText = date;
+          }
+
+          // Update the time every second
+          setInterval(updateTime, 1000);
+
+          // Initialize time on page load
+          updateTime();
+
         </script>
       </body>
     </html>
