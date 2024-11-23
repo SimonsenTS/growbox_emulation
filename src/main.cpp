@@ -24,13 +24,20 @@ DHT dht(DHTPIN, DHTTYPE);
 #define WATER_SENSOR_PIN 34
 #define BUTTON_PIN 32
 
+// Define PWM channels and frequency
+#define PWM_FREQ 5000                         // Frequency in Hz
+#define PWM_RESOLUTION 8                      // Resolution in bits (0-255)
+#define RED_CHANNEL 0
+#define GREEN_CHANNEL 1
+#define BLUE_CHANNEL 2
+
 // Server setup
 WebServer server(80);
 
 // Time server and timezone
 const char* ntpServer = "pool.ntp.org";
-const long gmtOffset_sec = 0;  // Adjust according to your timezone (e.g., GMT+2 = 7200 seconds)
-const int daylightOffset_sec = 3600;  // Adjust for daylight savings time
+const long gmtOffset_sec = 0;                 // Adjust according to your timezone (e.g., GMT+2 = 7200 seconds)
+const int daylightOffset_sec = 3600;          // Adjust for daylight savings time
 
 // LED and pins
 const int PUMP_RELAY = 26;
@@ -45,7 +52,7 @@ const int BLUE_PIN = 21;
 // LED and pump states
 bool pumpState = false;
 bool growLedState = false;
-int lastBrightness = 0;           // Stores the last known brightness for growLED level
+int lastBrightness = 0;                         // Stores the last known brightness for growLED level
 
 // Global variables to store RGB values for HTML update
 int redValue = 0, greenValue = 0, blueValue = 0;
@@ -54,6 +61,7 @@ int redValue = 0, greenValue = 0, blueValue = 0;
 void sendHtml();
 void toggleBUTTON(int buttonNumber);
 void updateSoilMoistureColor(int soilPercentage);
+void setRGBColor(int red, int green, int blue);
 //void updateWaterLevelColor(int waterPercentage);
 
 // Function to send HTML content to the web server
@@ -386,29 +394,20 @@ void sendHtml() {
 // Set RGB color based on soil moisture percentage
 void updateSoilMoistureColor(int soilPercentage) {
   if (soilPercentage < 20) {         // Dry: Red
-    redValue = 255;
-    greenValue = 0;
-    blueValue = 0;
+    setRGBColor(255, 0, 0);
   } else if (soilPercentage <= 60) { // Moist: Orange
-    redValue = 255;
-    greenValue = 165; 
-    blueValue = 0;
+    setRGBColor(255, 165, 0);
   } else {                           // Wet: Green
-    redValue = 0;
-    greenValue = 255;
-    blueValue = 0;
+    setRGBColor(0, 255, 0);
   }
-
-  // Update RGB LED with PWM values
-  analogWrite(RED_PIN, redValue);
-  analogWrite(GREEN_PIN, greenValue);
-  analogWrite(BLUE_PIN, blueValue);
 }
 
 void updateGrowLEDBrightness(int brightness) {
   lastBrightness = brightness;
   int pwmValue = map(brightness, 0, 100, 0, 255);   // Map brightness % to PWM range (0-255)
   analogWrite(GROWLED_PWM, pwmValue);               // Pin 5 for growLED
+  Serial.print("Brightness value ");
+  Serial.println(brightness);
 }
 
 // Toggle button based on the request
@@ -423,6 +422,18 @@ void toggleBUTTON(int buttonNumber) {
       digitalWrite(GROWLED_RELAY, growLedState);
       break;
   }
+}
+
+void setRGBColor(int red, int green, int blue) {
+  // Clamp values between 0 and 255
+  red = constrain(red, 0, 255);
+  green = constrain(green, 0, 255);
+  blue = constrain(blue, 0, 255);
+
+  // Write PWM values to the channels
+  ledcWrite(RED_CHANNEL, red);
+  ledcWrite(GREEN_CHANNEL, green);
+  ledcWrite(BLUE_CHANNEL, blue);
 }
 
 // Setup function for initializing the ESP32
@@ -444,6 +455,15 @@ void setup(void) {
   pinMode(RED_PIN, OUTPUT);
   pinMode(GREEN_PIN, OUTPUT);
   pinMode(BLUE_PIN, OUTPUT);
+  
+  // Attach the RGB pins to PWM channels
+  ledcSetup(RED_CHANNEL, PWM_FREQ, PWM_RESOLUTION);
+  ledcSetup(GREEN_CHANNEL, PWM_FREQ, PWM_RESOLUTION);
+  ledcSetup(BLUE_CHANNEL, PWM_FREQ, PWM_RESOLUTION);
+
+  ledcAttachPin(RED_PIN, RED_CHANNEL);
+  ledcAttachPin(GREEN_PIN, GREEN_CHANNEL);
+  ledcAttachPin(BLUE_PIN, BLUE_CHANNEL);
 
   // Wi-Fi connection
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
@@ -505,8 +525,8 @@ void setup(void) {
   });
 
   server.on("/favicon.ico", []() {
-    server.send(204);                     // 204 No Content: a minimal response to satisfy the request
-});
+  server.send(204);                     // 204 No Content: a minimal response to satisfy the request
+  });
 }
 
 // Main loop function.
