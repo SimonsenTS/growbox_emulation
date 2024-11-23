@@ -1,14 +1,17 @@
-#include<WiFi.h>
+#include <WiFi.h>
 #include <WiFiClient.h>
 #include <WebServer.h>
 #include <uri/UriBraces.h>
 #include "DHT.h"
+#include <time.h>
 
 // WiFi configuration
 #define WIFI_SSID "Wokwi-GUEST"
 #define WIFI_PASSWORD ""
 //#define WIFI_SSID "Thomas"
 //#define WIFI_PASSWORD "Kdawg123"
+//#define WIFI_SSID "ARRIS-1925-5G"
+//#define WIFI_PASSWORD "FmBNaNuERgJB"
 #define WIFI_CHANNEL 6
 
 // DHT sensor configuration
@@ -23,6 +26,11 @@ DHT dht(DHTPIN, DHTTYPE);
 
 // Server setup
 WebServer server(80);
+
+// Time server and timezone
+const char* ntpServer = "pool.ntp.org";
+const long gmtOffset_sec = 0;  // Adjust according to your timezone (e.g., GMT+2 = 7200 seconds)
+const int daylightOffset_sec = 3600;  // Adjust for daylight savings time
 
 // LED and pins
 const int PUMP_RELAY = 26;
@@ -294,7 +302,7 @@ void sendHtml() {
             min="0"
             max="100"
             value="BRIGHTNESS"
-            oninput=updateBrightness(this.value)
+            onchange=updateBrightness(this.value)
           />
         </div>
 
@@ -437,17 +445,25 @@ void setup(void) {
   pinMode(GREEN_PIN, OUTPUT);
   pinMode(BLUE_PIN, OUTPUT);
 
-  // Connect to WiFi
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD, WIFI_CHANNEL);
-  Serial.print("Connecting to WiFi ");
-  Serial.print(WIFI_SSID);
-  
-  // Wait for connection
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(100);
-    Serial.print(".");
+  // Wi-Fi connection
+    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(100);
+        Serial.print(".");
+    }
+    Serial.println("Connected to WiFi");
+
+ // Initialize time using NTP
+  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+  Serial.println("Time synchronized using NTP");
+
+  // Debug: Print the current time after synchronization
+  struct tm timeinfo;
+  if (getLocalTime(&timeinfo)) {
+      Serial.println(&timeinfo, "Current time: %Y-%m-%d %H:%M:%S");
+  } else {
+      Serial.println("Failed to obtain time");
   }
-  Serial.println(" Connected!");
 
   // Print IP address
   Serial.print("IP address: ");
