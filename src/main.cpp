@@ -66,7 +66,7 @@ int redValue = 0, greenValue = 0, blueValue = 0;
 void sendHtml();
 void toggleBUTTON(int buttonNumber);
 void updateSoilMoistureColor(int soilPercentage);
-void setRGBColor(int red, int green, int blue);
+void setRGBColor(int redValue, int greenValue, int blueValue);
 //void updateWaterLevelColor(int waterPercentage);
 
 // Function to send HTML content to the web server
@@ -398,11 +398,11 @@ void sendHtml() {
 
 // Set RGB color based on soil moisture percentage
 void updateSoilMoistureColor(int soilPercentage) {
-  if (soilPercentage < 20) {         // Dry: Red
-    setRGBColor(255, 0, 0);
-  } else if (soilPercentage <= 60) { // Moist: Orange
-    setRGBColor(255, 165, 0);
-  } else {                           // Wet: Green
+  if (soilPercentage < 20) {                        // Dry: Red
+    setRGBColor(255, 0, 0);               
+  } else if (soilPercentage <= 60) {                // Moist: Orange
+    setRGBColor(255, 165, 0);               
+  } else {                                          // Wet: Green
     setRGBColor(0, 255, 0);
   }
 }
@@ -429,16 +429,33 @@ void toggleBUTTON(int buttonNumber) {
   }
 }
 
+bool debounceButton() {
+  bool currentButtonState = digitalRead(BUTTON_PIN);
+
+  if (currentButtonState == LOW && lastButtonState == HIGH && (millis() - lastDebounceTime > debounceDelay)) {
+    lastDebounceTime = millis();                        // Update debounce timer
+    lastButtonState = currentButtonState;
+    return true;                                        // Valid button press
+  }
+
+  lastButtonState = currentButtonState;                 // Save current button state
+  return false;                                         // No valid press detected
+}
+
 void setRGBColor(int red, int green, int blue) {
   // Clamp values between 0 and 255
-  red = constrain(red, 0, 255);
-  green = constrain(green, 0, 255);
-  blue = constrain(blue, 0, 255);
+  redValue = constrain(red, 0, 255);
+  greenValue = constrain(green, 0, 255);
+  blueValue = constrain(blue, 0, 255);
+
+  // Debug output
+  Serial.printf("Setting RGB Color - R: %d, G: %d, B: %d\n", redValue, greenValue, blueValue);
+  Serial.println();
 
   // Write PWM values to the channels
-  ledcWrite(RED_CHANNEL, red);
-  ledcWrite(GREEN_CHANNEL, green);
-  ledcWrite(BLUE_CHANNEL, blue);
+  ledcWrite(RED_CHANNEL, redValue);
+  ledcWrite(GREEN_CHANNEL, greenValue);
+  ledcWrite(BLUE_CHANNEL, blueValue);
 }
 
 // Setup function for initializing the ESP32
@@ -454,6 +471,7 @@ void setup(void) {
   // Initialize PUMP and GROWLED RELAYS pins as outputs
   pinMode(PUMP_RELAY, OUTPUT);
   pinMode(GROWLED_RELAY, OUTPUT);
+  digitalWrite(PUMP_RELAY, LOW);                          // Ensure the pump is off at startup
   
   // Initialize RGB pins as outputs
   pinMode(RED_PIN, OUTPUT);
@@ -505,16 +523,16 @@ void setup(void) {
     toggleBUTTON(button.toInt());
 
     // After toggling the LED, redirect back to the main page
-    server.sendHeader("Location", "/");  // Redirect to home page
-    server.send(303);                     // 303 See Other, browser will follow the redirect
-  });
+    server.sendHeader("Location", "/");                 // Redirect to home page
+    server.send(303);                                   // 303 See Other, browser will follow the redirect
+  }); 
 
- // Add the route for the brightness slider
-  server.on(UriBraces("/brightness/{}"), []() {
-    String brightnessValue = server.pathArg(0);
-    int brightness = brightnessValue.toInt();
-    updateGrowLEDBrightness(brightness);
-    server.send(204);                     // No content response
+ // Add the route for the brightness slider 
+  server.on(UriBraces("/brightness/{}"), []() { 
+    String brightnessValue = server.pathArg(0); 
+    int brightness = brightnessValue.toInt(); 
+    updateGrowLEDBrightness(brightness);  
+    server.send(204);                                   // No content response
   });
 
   // Start the web server
@@ -529,7 +547,7 @@ void setup(void) {
   });
 
   server.on("/favicon.ico", []() {
-  server.send(204);                     // 204 No Content: a minimal response to satisfy the request
+  server.send(204);                                     // 204 No Content: a minimal response to satisfy the request
   });
 }
 
@@ -541,19 +559,13 @@ void loop(void) {
        WiFi.reconnect();
    }
 
-  // Button handling with debounce
-  bool currentButtonState = digitalRead(BUTTON_PIN);
-
-  if (currentButtonState == LOW && lastButtonState == HIGH && (millis() - lastDebounceTime > debounceDelay)) {
-    // Button is pressed and debounce delay has passed
-    pumpState = !pumpState;               // Toggle PUMP state
-    digitalWrite(PUMP_RELAY, pumpState);  // Update the pump relay
+  // Check and handle button press
+  if (debounceButton()) {
+    pumpState = !pumpState;                             // Toggle PUMP state
+    digitalWrite(PUMP_RELAY, pumpState);                // Update the pump relay
     Serial.print("Pump State: ");
     Serial.println(pumpState ? "ON" : "OFF");
-    lastDebounceTime = millis();          // Update the debounce timer
   }
-
-  lastButtonState = currentButtonState;   // Save the current button state
 
   // Handle client requests
   server.handleClient();
