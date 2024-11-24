@@ -6,10 +6,10 @@
 #include <time.h>
 
 // WiFi configuration
-#define WIFI_SSID "Wokwi-GUEST"
-#define WIFI_PASSWORD ""
-//#define WIFI_SSID "Thomas"
-//#define WIFI_PASSWORD "Kdawg123"
+//#define WIFI_SSID "Wokwi-GUEST"
+//#define WIFI_PASSWORD ""
+#define WIFI_SSID "Thomas"
+#define WIFI_PASSWORD "Kdawg123"
 //#define WIFI_SSID "ARRIS-1925-5G"
 //#define WIFI_PASSWORD "FmBNaNuERgJB"
 #define WIFI_CHANNEL 6
@@ -197,7 +197,7 @@ void sendHtml() {
             border: 2px solid #333;
             padding: 1em;
             margin: 1em 0;
-            max-width: 400px;           /* Match other elements */
+            max-width: 380px;           /* Match other elements */
             width: 100%;
           }
 
