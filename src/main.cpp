@@ -34,6 +34,11 @@ DHT dht(DHTPIN, DHTTYPE);
 // Server setup
 WebServer server(80);
 
+// Button state
+unsigned long lastDebounceTime = 0;           // Keeps track of the last button press time
+unsigned long debounceDelay = 200;            // Debounce delay in milliseconds
+bool lastButtonState = HIGH;                  // Previous state of the button
+
 // Time server and timezone
 const char* ntpServer = "pool.ntp.org";
 const long gmtOffset_sec = 0;                 // Adjust according to your timezone (e.g., GMT+2 = 7200 seconds)
@@ -445,7 +450,6 @@ void setup(void) {
 
   // Initialize pushButton as input with pull-up
   pinMode(BUTTON_PIN, INPUT_PULLUP);
-  pinMode(PUMP_RELAY, OUTPUT);
   
   // Initialize PUMP and GROWLED RELAYS pins as outputs
   pinMode(PUMP_RELAY, OUTPUT);
@@ -532,12 +536,24 @@ void setup(void) {
 // Main loop function.
 void loop(void) {
 
-  // Check if the button is pressed
-  if (digitalRead(BUTTON_PIN) == LOW) {   // LOW means pressed
+    // Reconnect WiFi if needed
+   if (WiFi.status() != WL_CONNECTED) {
+       WiFi.reconnect();
+   }
+
+  // Button handling with debounce
+  bool currentButtonState = digitalRead(BUTTON_PIN);
+
+  if (currentButtonState == LOW && lastButtonState == HIGH && (millis() - lastDebounceTime > debounceDelay)) {
+    // Button is pressed and debounce delay has passed
     pumpState = !pumpState;               // Toggle PUMP state
-    digitalWrite(PUMP_RELAY, pumpState);
-    delay(200);                           // Debounce delay
+    digitalWrite(PUMP_RELAY, pumpState);  // Update the pump relay
+    Serial.print("Pump State: ");
+    Serial.println(pumpState ? "ON" : "OFF");
+    lastDebounceTime = millis();          // Update the debounce timer
   }
+
+  lastButtonState = currentButtonState;   // Save the current button state
 
   // Handle client requests
   server.handleClient();
