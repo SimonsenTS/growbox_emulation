@@ -126,6 +126,34 @@ void WebServerManager::handleDashboard() {
         devices->setPumpState(false);
     }
 
+    // Update RGB colors based on sensor values (always do this)
+    devices->updateSoilMoistureColor(soilPercentage);
+    devices->updateWaterLevelColor(waterPercentage);
+    
+    Serial.println("=== Dashboard RGB Values ===");
+    Serial.printf("Soil RGB: R=%d, G=%d, B=%d\n", 
+                  devices->getSoilRedValue(), devices->getSoilGreenValue(), devices->getSoilBlueValue());
+    Serial.printf("Water RGB: R=%d, G=%d, B=%d\n", 
+                  devices->getWaterRedValue(), devices->getWaterGreenValue(), devices->getWaterBlueValue());
+
+    // Replace Soil Moisture RGB values FIRST (before replacing SOIL with percentage)
+    String soilR = String(devices->getSoilRedValue());
+    String soilG = String(devices->getSoilGreenValue());
+    String soilB = String(devices->getSoilBlueValue());
+    response.replace("SOIL_R_VAL", soilR);
+    response.replace("SOIL_G_VAL", soilG);
+    response.replace("SOIL_B_VAL", soilB);
+    Serial.printf("Replacing SOIL RGB: %s, %s, %s\n", soilR.c_str(), soilG.c_str(), soilB.c_str());
+    
+    // Replace Water Level RGB values FIRST (before replacing WATER with percentage)
+    String waterR = String(devices->getWaterRedValue());
+    String waterG = String(devices->getWaterGreenValue());
+    String waterB = String(devices->getWaterBlueValue());
+    response.replace("WATER_R_VAL", waterR);
+    response.replace("WATER_G_VAL", waterG);
+    response.replace("WATER_B_VAL", waterB);
+    Serial.printf("Replacing WATER RGB: %s, %s, %s\n", waterR.c_str(), waterG.c_str(), waterB.c_str());
+
     if (isnan(temperature) || isnan(humidity)) {
         response.replace("TEMP", "0");
         response.replace("HUM", "0");
@@ -134,24 +162,26 @@ void WebServerManager::handleDashboard() {
         int humPercentage = constrain(humidity, 0, 100);
         response.replace("TEMP", String(tempPercentage));
         response.replace("HUM", String(humPercentage));
-        response.replace("SOIL", String(soilPercentage));
-        response.replace("WATER", String(waterPercentage));
-
-        // Update RGB color based on soil percentage
-        devices->updateSoilMoistureColor(soilPercentage);
     }
+    
+    // Replace sensor percentages (do this AFTER RGB replacements)
+    response.replace("SOIL", String(soilPercentage));
+    response.replace("WATER", String(waterPercentage));
 
     // Update device states in the HTML response
     response.replace("PUMP_TEXT", devices->getPumpState() ? "ON" : "OFF");
     response.replace("GrowLED", devices->getGrowLedState() ? "ON" : "OFF");
 
-    // Replace RGB values in HTML
-    response.replace("R_VAL", String(devices->getRedValue()));
-    response.replace("G_VAL", String(devices->getGreenValue()));
-    response.replace("B_VAL", String(devices->getBlueValue()));
-
     // Replace BRIGHTNESS with the actual brightness value
     response.replace("BRIGHTNESS", String(devices->getBrightness()));
+
+    // Debug: Show a snippet of the HTML with the LED styles
+    int soilLEDPos = response.indexOf("soilLED");
+    if (soilLEDPos > 0) {
+        String snippet = response.substring(soilLEDPos, soilLEDPos + 150);
+        Serial.println("=== HTML Snippet (soilLED) ===");
+        Serial.println(snippet);
+    }
 
     server.send(200, "text/html", response);
 }
@@ -220,6 +250,8 @@ void WebServerManager::handleSimulation() {
         sensors->setSimulatedSoilPercentage(soil);
         Serial.print("Simulated Soil Moisture set to: ");
         Serial.println(soil);
+        // Update RGB LED color immediately
+        devices->updateSoilMoistureColor(soil);
     }
     
     if (server.hasArg("water")) {
@@ -227,6 +259,8 @@ void WebServerManager::handleSimulation() {
         sensors->setSimulatedWaterPercentage(water);
         Serial.print("Simulated Water Level set to: ");
         Serial.println(water);
+        // Update RGB LED color immediately
+        devices->updateWaterLevelColor(water);
     }
     
     server.send(200, "text/plain", "Simulation values updated");

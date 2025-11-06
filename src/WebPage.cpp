@@ -116,19 +116,38 @@ String WebPage::getHTML() {
             margin: 0;
           }
 
+          .rgb-container {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin: 20px auto;
+            max-width: 600px;
+          }
+
           .rgb-box {
             border: 2px solid #333;
             padding: 1em;
-            margin: 1em 0;
-            max-width: 380px;
-            width: 100%;
+            flex: 1;
+            min-width: 200px;
+            max-width: 280px;
+            border-radius: 10px;
+            background: #f9f9f9;
+          }
+
+          .rgb-box h3 {
+            margin-top: 0;
+            color: #333;
+            font-size: 1.1em;
           }
 
           .color-display {
             width: 100px;
             height: 100px;
-            background-color: rgb(R_VAL, G_VAL, B_VAL);
-            margin: 0 auto;
+            border-radius: 50%;
+            margin: 10px auto;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+            transition: background-color 0.3s ease;
           }
 
           .slider-container {
@@ -316,13 +335,17 @@ String WebPage::getHTML() {
           />
         </div>
 
-        <!-- RGB Box -->
-        <div class="rgb-box container">
-          <h2>RGB LED</h2>
-          <div class="color-display"></div>
-          <p>Red: R_VAL</p>
-          <p>Green: G_VAL</p>
-          <p>Blue: B_VAL</p>
+        <!-- RGB LEDs Container -->
+        <div class="rgb-container">
+          <div class="rgb-box">
+            <h3>Soil Moisture LED</h3>
+            <div id="soilLED" class="color-display" style="background-color: rgb(SOIL_R_VAL, SOIL_G_VAL, SOIL_B_VAL);"></div>
+          </div>
+          
+          <div class="rgb-box">
+            <h3>Water Level LED</h3>
+            <div id="waterLED" class="color-display" style="background-color: rgb(WATER_R_VAL, WATER_G_VAL, WATER_B_VAL);"></div>
+          </div>
         </div>
 
         <script>

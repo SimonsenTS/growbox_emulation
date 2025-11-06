@@ -24,6 +24,13 @@ void setup() {
     sensors.begin();
     devices.begin();
     
+    // Initialize RGB LED colors based on initial sensor readings
+    int initialSoil = sensors.getSoilPercentage();
+    int initialWater = sensors.getWaterPercentage();
+    devices.updateSoilMoistureColor(initialSoil);
+    devices.updateWaterLevelColor(initialWater);
+    Serial.printf("Initial RGB colors set - Soil: %d%%, Water: %d%%\n", initialSoil, initialWater);
+    
     // Initialize Access Point for initial setup
     AuthManager::initAccessPoint();
     
