@@ -1,16 +1,8 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-// WiFi configuration
-#define WIFI_SSID "DEIF-Public"
-#define WIFI_PASSWORD "DEIF1933"
-//#define WIFI_SSID "Wokwi-GUEST"
-//#define WIFI_PASSWORD ""
-//#define WIFI_SSID "Thomas"
-//#define WIFI_PASSWORD "Kdawg123"
-//#define WIFI_SSID "WiFi Extender2,4"
-//#define WIFI_PASSWORD "sejcevJozit9"
-#define WIFI_CHANNEL 6
+// WiFi configuration is now handled through the web interface
+// No need for hardcoded credentials - users configure via GrowBox-Setup AP
 
 // DHT sensor configuration
 #define DHTPIN 4
