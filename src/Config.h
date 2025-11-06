@@ -2,17 +2,19 @@
 #define CONFIG_H
 
 // WiFi configuration
-#define WIFI_SSID "Wokwi-GUEST"
-#define WIFI_PASSWORD ""
+#define WIFI_SSID "DEIF-Public"
+#define WIFI_PASSWORD "DEIF1933"
+//#define WIFI_SSID "Wokwi-GUEST"
+//#define WIFI_PASSWORD ""
 //#define WIFI_SSID "Thomas"
 //#define WIFI_PASSWORD "Kdawg123"
-//#define WIFI_SSID "ARRIS-1925-5G"
-//#define WIFI_PASSWORD "FmBNaNuERgJB"
+//#define WIFI_SSID "WiFi Extender2,4"
+//#define WIFI_PASSWORD "sejcevJozit9"
 #define WIFI_CHANNEL 6
 
 // DHT sensor configuration
 #define DHTPIN 4
-#define DHTTYPE DHT22
+#define DHTTYPE DHT11
 
 // Sensor pins
 #define SOIL_SENSOR_PIN 33
@@ -43,5 +45,8 @@
 
 // Button debounce
 #define DEBOUNCE_DELAY 200
+
+// Simulation mode - set to true to enable manual sensor input
+#define SIMULATION_MODE true
 
 #endif // CONFIG_H

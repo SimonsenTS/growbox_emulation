@@ -9,6 +9,12 @@ class SensorManager {
 private:
     DHT dht;
     
+    // Simulation mode values
+    float simulatedTemperature;
+    float simulatedHumidity;
+    int simulatedSoilPercentage;
+    int simulatedWaterPercentage;
+    
 public:
     SensorManager();
     void begin();
@@ -20,6 +26,12 @@ public:
     
     int getSoilPercentage();
     int getWaterPercentage();
+    
+    // Simulation mode setters
+    void setSimulatedTemperature(float temp);
+    void setSimulatedHumidity(float hum);
+    void setSimulatedSoilPercentage(int soil);
+    void setSimulatedWaterPercentage(int water);
 };
 
 #endif // SENSORMANAGER_H

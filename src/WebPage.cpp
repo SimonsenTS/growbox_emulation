@@ -1,7 +1,7 @@
 #include "WebPage.h"
 
 String WebPage::getHTML() {
-    return R"(
+    return R"delimiter(
   <!DOCTYPE html>
     <html>
       <head>
@@ -181,11 +181,89 @@ String WebPage::getHTML() {
             line-height: 1.5;
           }
 
+          /* Simulation Panel */
+          .sim-panel {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px auto;
+            max-width: 450px;
+          }
+
+          .sim-title {
+            color: #856404;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+          }
+
+          .sim-control {
+            margin: 10px 0;
+            text-align: left;
+          }
+
+          .sim-control label {
+            display: inline-block;
+            width: 120px;
+            font-weight: bold;
+            color: #856404;
+          }
+
+          .sim-control input[type="number"] {
+            width: 80px;
+            padding: 5px;
+            border: 1px solid #ffc107;
+            border-radius: 5px;
+            margin-right: 10px;
+          }
+
+          .sim-btn {
+            background-color: #ffc107;
+            color: #856404;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 10px;
+            width: 100%;
+          }
+
+          .sim-btn:hover {
+            background-color: #e0a800;
+          }
+
         </style>
       </head>
 
       <body>
         <h1>GrowBox Web Server</h1>
+
+        <!-- Simulation Panel -->
+        <div class="sim-panel container">
+          <h2 class="sim-title">Simulation Controls</h2>
+          <div class="sim-control">
+            <label>Temperature:</label>
+            <input type="number" id="simTemp" min="-40" max="80" step="0.5" value="25">
+            <span>&deg;C</span>
+          </div>
+          <div class="sim-control">
+            <label>Humidity:</label>
+            <input type="number" id="simHum" min="0" max="100" step="1" value="50">
+            <span>%</span>
+          </div>
+          <div class="sim-control">
+            <label>Soil Moisture:</label>
+            <input type="number" id="simSoil" min="0" max="100" step="1" value="30">
+            <span>%</span>
+          </div>
+          <div class="sim-control">
+            <label>Water Level:</label>
+            <input type="number" id="simWater" min="0" max="100" step="1" value="70">
+            <span>%</span>
+          </div>
+          <button class="sim-btn" onclick="updateSimulation()">Update Simulation</button>
+        </div>
 
         <!-- Buttons -->
         <div class="container">
@@ -250,7 +328,34 @@ String WebPage::getHTML() {
         <script>
           function updateBrightness(value) {
             document.getElementById("brightnessValue").innerText = value + "%";
-            fetch('/brightness/' + value);
+            fetch("/brightness/" + value);
+          }
+
+          function updateSimulation() {
+            const temp = document.getElementById("simTemp").value;
+            const hum = document.getElementById("simHum").value;
+            const soil = document.getElementById("simSoil").value;
+            const water = document.getElementById("simWater").value;
+
+            const formData = new URLSearchParams();
+            formData.append("temperature", temp);
+            formData.append("humidity", hum);
+            formData.append("soil", soil);
+            formData.append("water", water);
+
+            fetch("/simulation", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+              },
+              body: formData
+            })
+            .then(response => response.text())
+            .then(data => {
+              console.log("Simulation updated:", data);
+              setTimeout(() => window.location.reload(), 500);
+            })
+            .catch(error => console.error("Error:", error));
           }
 
           function updateTime() {
@@ -268,5 +373,5 @@ String WebPage::getHTML() {
         </script>
       </body>
     </html>
-  )";
+  )delimiter";
 }

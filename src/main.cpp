@@ -3,36 +3,46 @@
 #include "Config.h"
 #include "SensorManager.h"
 #include "DeviceController.h"
+#include "AuthManager.h"
 #include "WebServerManager.h"
 
 // Create instances of our managers
 SensorManager sensors;
 DeviceController devices;
-WebServerManager webServer(&sensors, &devices);
+AuthManager auth("admin", "password123");  // Default credentials
+WebServerManager webServer(&sensors, &devices, &auth);
 
 void setup() {
     Serial.begin(115200);
+    delay(1000);
+    
+    Serial.println("\n=================================");
+    Serial.println("GrowBox System Starting...");
+    Serial.println("=================================\n");
     
     // Initialize all components
     sensors.begin();
     devices.begin();
     
-    // Connect to WiFi
-    WebServerManager::initWiFi();
+    // Initialize Access Point for initial setup
+    AuthManager::initAccessPoint();
     
-    // Initialize time
-    WebServerManager::initTime();
+    // Scan for available networks
+    auth.scanNetworks();
     
     // Start web server
     webServer.begin();
+    
+    Serial.println("\n=================================");
+    Serial.println("System Ready!");
+    Serial.println("1. Connect to WiFi: GrowBox-Setup");
+    Serial.println("2. Password: growbox123");
+    Serial.println("3. Open browser: http://192.168.4.1");
+    Serial.println("4. Login: admin / password123");
+    Serial.println("=================================\n");
 }
 
 void loop() {
-    // Reconnect WiFi if needed
-    if (WiFi.status() != WL_CONNECTED) {
-        WiFi.reconnect();
-    }
-
     // Check and handle button press
     if (devices.checkButton()) {
         devices.togglePump();
