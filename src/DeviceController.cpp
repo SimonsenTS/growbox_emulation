@@ -80,7 +80,12 @@ void DeviceController::setSoilRGBColor(int red, int green, int blue) {
     // Debug output
     Serial.printf("Setting Soil Moisture LED - R: %d, G: %d, B: %d\n", soilRedValue, soilGreenValue, soilBlueValue);
 
-    // Write PWM values to the channels
+    // Common cathode RGB LED - no inversion needed
+    // HIGH (255) = LED ON, LOW (0) = LED OFF
+    Serial.printf("Soil LED PWM output - R: %d, G: %d, B: %d (channels %d/%d/%d)\n", 
+                  soilRedValue, soilGreenValue, soilBlueValue,
+                  SOIL_RED_CHANNEL, SOIL_GREEN_CHANNEL, SOIL_BLUE_CHANNEL);
+    
     ledcWrite(SOIL_RED_CHANNEL, soilRedValue);
     ledcWrite(SOIL_GREEN_CHANNEL, soilGreenValue);
     ledcWrite(SOIL_BLUE_CHANNEL, soilBlueValue);
@@ -108,7 +113,12 @@ void DeviceController::setWaterRGBColor(int red, int green, int blue) {
     // Debug output
     Serial.printf("Setting Water Level LED - R: %d, G: %d, B: %d\n", waterRedValue, waterGreenValue, waterBlueValue);
 
-    // Write PWM values to the channels
+    // Common cathode RGB LED - no inversion needed
+    // HIGH (255) = LED ON, LOW (0) = LED OFF
+    Serial.printf("Water LED PWM output - R: %d, G: %d, B: %d (channels %d/%d/%d)\n", 
+                  waterRedValue, waterGreenValue, waterBlueValue,
+                  WATER_RED_CHANNEL, WATER_GREEN_CHANNEL, WATER_BLUE_CHANNEL);
+    
     ledcWrite(WATER_RED_CHANNEL, waterRedValue);
     ledcWrite(WATER_GREEN_CHANNEL, waterGreenValue);
     ledcWrite(WATER_BLUE_CHANNEL, waterBlueValue);

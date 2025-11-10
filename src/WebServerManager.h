@@ -24,7 +24,9 @@ private:
     void handleDashboard();
     void handleToggle();
     void handleBrightness();
+#if SIMULATION_MODE
     void handleSimulation();
+#endif
     void handleNotFound();
     void handleFavicon();
     

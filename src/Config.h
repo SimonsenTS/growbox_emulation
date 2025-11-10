@@ -32,15 +32,15 @@
 #define GROWLED_RELAY 27
 #define GROWLED_PWM 5
 
-// Soil Moisture RGB LED pins
+// Soil Moisture RGB LED pins (Blue and Green swapped from wire colors)
 #define SOIL_RED_PIN 23
-#define SOIL_GREEN_PIN 22
-#define SOIL_BLUE_PIN 21
+#define SOIL_GREEN_PIN 21
+#define SOIL_BLUE_PIN 22
 
-// Water Level RGB LED pins
+// Water Level RGB LED pins (Blue and Green swapped from wire colors)
 #define WATER_RED_PIN 19
-#define WATER_GREEN_PIN 18
-#define WATER_BLUE_PIN 17
+#define WATER_GREEN_PIN 17
+#define WATER_BLUE_PIN 18
 
 // Time configuration
 #define NTP_SERVER "pool.ntp.org"

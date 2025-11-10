@@ -1,4 +1,5 @@
 #include "WebPage.h"
+#include "Config.h"
 
 String WebPage::getHTML() {
     return R"delimiter(
@@ -200,6 +201,9 @@ String WebPage::getHTML() {
             line-height: 1.5;
           }
 
+)delimiter"
+#if SIMULATION_MODE
+R"delimiter(
           /* Simulation Panel */
           .sim-panel {
             background: #fff3cd;
@@ -252,38 +256,47 @@ String WebPage::getHTML() {
             background-color: #e0a800;
           }
 
+)delimiter"
+#endif
+R"delimiter(
         </style>
       </head>
 
       <body>
         <h1>GrowBox Web Server</h1>
 
+)delimiter"
+#if SIMULATION_MODE
+R"delimiter(
         <!-- Simulation Panel -->
         <div class="sim-panel container">
           <h2 class="sim-title">Simulation Controls</h2>
           <div class="sim-control">
             <label>Temperature:</label>
-            <input type="number" id="simTemp" min="-40" max="80" step="0.5" value="25">
+            <input type="number" id="simTemp" min="-40" max="80" step="0.5" value="TEMP">
             <span>&deg;C</span>
           </div>
           <div class="sim-control">
             <label>Humidity:</label>
-            <input type="number" id="simHum" min="0" max="100" step="1" value="50">
+            <input type="number" id="simHum" min="0" max="100" step="1" value="HUM">
             <span>%</span>
           </div>
           <div class="sim-control">
             <label>Soil Moisture:</label>
-            <input type="number" id="simSoil" min="0" max="100" step="1" value="30">
+            <input type="number" id="simSoil" min="0" max="100" step="1" value="SOIL">
             <span>%</span>
           </div>
           <div class="sim-control">
             <label>Water Level:</label>
-            <input type="number" id="simWater" min="0" max="100" step="1" value="70">
+            <input type="number" id="simWater" min="0" max="100" step="1" value="WATER">
             <span>%</span>
           </div>
           <button class="sim-btn" onclick="updateSimulation()">Update Simulation</button>
         </div>
 
+)delimiter"
+#endif
+R"delimiter(
         <!-- Buttons -->
         <div class="container">
           <h2>Pump</h2>
@@ -354,6 +367,9 @@ String WebPage::getHTML() {
             fetch("/brightness/" + value);
           }
 
+)delimiter"
+#if SIMULATION_MODE
+R"delimiter(
           function updateSimulation() {
             const temp = document.getElementById("simTemp").value;
             const hum = document.getElementById("simHum").value;
@@ -381,6 +397,9 @@ String WebPage::getHTML() {
             .catch(error => console.error("Error:", error));
           }
 
+)delimiter"
+#endif
+R"delimiter(
           function updateTime() {
             const now = new Date();
             const time = now.toLocaleTimeString();

@@ -23,7 +23,9 @@ void WebServerManager::begin() {
     server.on("/dashboard", HTTP_GET, [this]() { handleDashboard(); });
     server.on(UriBraces("/toggle/{}"), [this]() { handleToggle(); });
     server.on(UriBraces("/brightness/{}"), [this]() { handleBrightness(); });
+#if SIMULATION_MODE
     server.on("/simulation", HTTP_POST, [this]() { handleSimulation(); });
+#endif
     server.on("/favicon.ico", [this]() { handleFavicon(); });
     server.onNotFound([this]() { handleNotFound(); });
     
@@ -226,6 +228,7 @@ void WebServerManager::handleNotFound() {
     server.send(404, "text/plain", "404: Not Found");
 }
 
+#if SIMULATION_MODE
 void WebServerManager::handleSimulation() {
     if (!checkAuthentication()) {
         return;
@@ -265,6 +268,7 @@ void WebServerManager::handleSimulation() {
     
     server.send(200, "text/plain", "Simulation values updated");
 }
+#endif
 
 void WebServerManager::handleFavicon() {
     server.send(204);
