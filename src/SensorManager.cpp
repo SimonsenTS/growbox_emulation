@@ -7,6 +7,15 @@ SensorManager::SensorManager() : dht(DHTPIN, DHTTYPE),
 
 void SensorManager::begin() {
     dht.begin();
+    
+    // Initialize sensor power pins as outputs and turn them OFF initially
+    pinMode(SOIL_POWER_PIN, OUTPUT);
+    pinMode(WATER_POWER_PIN, OUTPUT);
+    digitalWrite(SOIL_POWER_PIN, LOW);
+    digitalWrite(WATER_POWER_PIN, LOW);
+    
+    Serial.println("DHT sensor initialized");
+    Serial.println("Sensor power control pins initialized (GPIO " + String(SOIL_POWER_PIN) + " & " + String(WATER_POWER_PIN) + ")");
 }
 
 float SensorManager::readTemperature() {
@@ -29,7 +38,16 @@ int SensorManager::readSoilMoisture() {
 #if SIMULATION_MODE
     return map(simulatedSoilPercentage, 0, 100, 0, 4095);
 #else
-    return analogRead(SOIL_SENSOR_PIN);
+    // Power ON the soil sensor
+    digitalWrite(SOIL_POWER_PIN, HIGH);
+    delay(100); // Wait for sensor to stabilize
+    
+    int soilValue = analogRead(SOIL_SENSOR_PIN);
+    
+    // Power OFF the soil sensor to prevent corrosion
+    digitalWrite(SOIL_POWER_PIN, LOW);
+    
+    return soilValue;
 #endif
 }
 
@@ -37,7 +55,16 @@ int SensorManager::readWaterLevel() {
 #if SIMULATION_MODE
     return map(simulatedWaterPercentage, 0, 100, 0, 4095);
 #else
-    return analogRead(WATER_SENSOR_PIN);
+    // Power ON the water level sensor
+    digitalWrite(WATER_POWER_PIN, HIGH);
+    delay(100); // Wait for sensor to stabilize
+    
+    int waterValue = analogRead(WATER_SENSOR_PIN);
+    
+    // Power OFF the water level sensor to prevent corrosion
+    digitalWrite(WATER_POWER_PIN, LOW);
+    
+    return waterValue;
 #endif
 }
 

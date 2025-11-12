@@ -12,6 +12,9 @@ DeviceController devices;
 AuthManager auth("admin", "password123");  // Default credentials
 WebServerManager webServer(&sensors, &devices, &auth);
 
+// Automatic sensor reading timing
+unsigned long lastSensorReadTime = 0;
+
 void setup() {
     Serial.begin(115200);
     delay(1000);
@@ -56,6 +59,35 @@ void loop() {
         Serial.print("Pump State: ");
         Serial.println(devices.getPumpState() ? "ON" : "OFF");
     }
+
+#if AUTO_SENSOR_INTERVAL > 0
+    // Periodic automatic sensor reading
+    unsigned long currentTime = millis();
+    if (currentTime - lastSensorReadTime >= AUTO_SENSOR_INTERVAL) {
+        lastSensorReadTime = currentTime;
+        
+        // Read all sensors
+        float temperature = sensors.readTemperature();
+        float humidity = sensors.readHumidity();
+        int soilPercentage = sensors.getSoilPercentage();
+        int waterPercentage = sensors.getWaterPercentage();
+        
+        // Update RGB LED colors
+        devices.updateSoilMoistureColor(soilPercentage);
+        devices.updateWaterLevelColor(waterPercentage);
+        
+        // Auto-stop pump if soil is too wet
+        if (soilPercentage > 80) {
+            devices.setPumpState(false);
+            Serial.println("Auto-stop: Soil moisture > 80%");
+        }
+        
+        // Log readings
+        Serial.println("=== Automatic Sensor Reading ===");
+        Serial.printf("Temperature: %.1f°C, Humidity: %.1f%%\n", temperature, humidity);
+        Serial.printf("Soil: %d%%, Water: %d%%\n", soilPercentage, waterPercentage);
+    }
+#endif
 
     // Handle client requests
     webServer.handleClient();

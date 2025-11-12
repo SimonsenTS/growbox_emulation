@@ -13,6 +13,10 @@
 #define WATER_SENSOR_PIN 34
 #define BUTTON_PIN 32
 
+// Sensor power control pins (to prevent corrosion)
+#define SOIL_POWER_PIN 25
+#define WATER_POWER_PIN 14
+
 // PWM configuration
 #define PWM_FREQ 5000
 #define PWM_RESOLUTION 8
@@ -49,6 +53,11 @@
 
 // Button debounce
 #define DEBOUNCE_DELAY 200
+
+// Automatic sensor reading interval (in milliseconds)
+// Set to 0 to disable periodic readings (only read on dashboard access)
+// Default: 300000 ms = 5 minutes
+#define AUTO_SENSOR_INTERVAL 300000
 
 // Simulation mode - set to true to enable manual sensor input
 #define SIMULATION_MODE true
