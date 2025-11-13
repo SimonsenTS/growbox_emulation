@@ -73,7 +73,11 @@ int SensorManager::getSoilPercentage() {
     return simulatedSoilPercentage;
 #else
     int soilMoisture = readSoilMoisture();
-    return map(soilMoisture, 0, 4095, 0, 100);
+    // Invert and map: dry (high value) = 0%, wet (low value) = 100%
+    int percentage = map(soilMoisture, SOIL_DRY_VALUE, SOIL_WET_VALUE, 0, 100);
+    percentage = constrain(percentage, 0, 100);
+    Serial.printf("Soil: raw=%d, percentage=%d%%\n", soilMoisture, percentage);
+    return percentage;
 #endif
 }
 
@@ -82,7 +86,11 @@ int SensorManager::getWaterPercentage() {
     return simulatedWaterPercentage;
 #else
     int waterLevel = readWaterLevel();
-    return map(waterLevel, 0, 4095, 0, 100);
+    // Invert and map: empty (high value) = 0%, full (low value) = 100%
+    int percentage = map(waterLevel, WATER_EMPTY_VALUE, WATER_FULL_VALUE, 0, 100);
+    percentage = constrain(percentage, 0, 100);
+    Serial.printf("Water: raw=%d, percentage=%d%%\n", waterLevel, percentage);
+    return percentage;
 #endif
 }
 

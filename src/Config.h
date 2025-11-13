@@ -13,6 +13,14 @@
 #define WATER_SENSOR_PIN 34
 #define BUTTON_PIN 32
 
+// Sensor calibration values (adjust based on your 3.3V sensors)
+// For soil sensor: dry = high value, wet = low value (inverted)
+#define SOIL_DRY_VALUE 2852    // Analog reading when completely dry
+#define SOIL_WET_VALUE 1902    // Analog reading when fully submerged
+// For water sensor: empty = high value, full = low value (inverted)
+#define WATER_EMPTY_VALUE 3000 // Analog reading when empty/dry
+#define WATER_FULL_VALUE 1200  // Analog reading when fully submerged
+
 // Sensor power control pins (to prevent corrosion)
 #define SOIL_POWER_PIN 25
 #define WATER_POWER_PIN 14
@@ -60,6 +68,6 @@
 #define AUTO_SENSOR_INTERVAL 300000
 
 // Simulation mode - set to true to enable manual sensor input
-#define SIMULATION_MODE true
+#define SIMULATION_MODE false
 
 #endif // CONFIG_H
