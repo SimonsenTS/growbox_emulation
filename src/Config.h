@@ -18,8 +18,8 @@
 #define SOIL_DRY_VALUE 2852    // Analog reading when completely dry
 #define SOIL_WET_VALUE 1902    // Analog reading when fully submerged
 // For water sensor: empty = high value, full = low value (inverted)
-#define WATER_EMPTY_VALUE 3000 // Analog reading when empty/dry
-#define WATER_FULL_VALUE 1200  // Analog reading when fully submerged
+#define WATER_EMPTY_VALUE 0    // Analog reading when empty/dry (no power when dry)
+#define WATER_FULL_VALUE 1460  // Analog reading when fully submerged
 
 // Sensor power control pins (to prevent corrosion)
 #define SOIL_POWER_PIN 25

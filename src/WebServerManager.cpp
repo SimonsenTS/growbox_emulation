@@ -177,14 +177,6 @@ void WebServerManager::handleDashboard() {
     // Replace BRIGHTNESS with the actual brightness value
     response.replace("BRIGHTNESS", String(devices->getBrightness()));
 
-    // Debug: Show a snippet of the HTML with the LED styles
-    int soilLEDPos = response.indexOf("soilLED");
-    if (soilLEDPos > 0) {
-        String snippet = response.substring(soilLEDPos, soilLEDPos + 150);
-        Serial.println("=== HTML Snippet (soilLED) ===");
-        Serial.println(snippet);
-    }
-
     server.send(200, "text/html", response);
 }
 

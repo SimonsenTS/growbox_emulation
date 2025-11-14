@@ -57,12 +57,14 @@ int SensorManager::readWaterLevel() {
 #else
     // Power ON the water level sensor
     digitalWrite(WATER_POWER_PIN, HIGH);
+    Serial.printf("Water power pin %d set to HIGH\n", WATER_POWER_PIN);
     delay(100); // Wait for sensor to stabilize
     
     int waterValue = analogRead(WATER_SENSOR_PIN);
     
     // Power OFF the water level sensor to prevent corrosion
     digitalWrite(WATER_POWER_PIN, LOW);
+    Serial.printf("Water sensor read: %d (pin %d)\n", waterValue, WATER_SENSOR_PIN);
     
     return waterValue;
 #endif
