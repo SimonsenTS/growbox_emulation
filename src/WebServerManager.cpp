@@ -172,7 +172,9 @@ void WebServerManager::handleDashboard() {
 
     // Update device states in the HTML response
     response.replace("PUMP_TEXT", devices->getPumpState() ? "ON" : "OFF");
+    response.replace("PUMP_CLASS", devices->getPumpState() ? "btn" : "btn-off");
     response.replace("GrowLED", devices->getGrowLedState() ? "ON" : "OFF");
+    response.replace("LED_CLASS", devices->getGrowLedState() ? "btn" : "btn-off");
 
     // Replace BRIGHTNESS with the actual brightness value
     response.replace("BRIGHTNESS", String(devices->getBrightness()));

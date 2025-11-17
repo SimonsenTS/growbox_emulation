@@ -81,8 +81,15 @@ String WebPage::getHTML() {
             border-radius: 10px;
           }
           
-          .btn.OFF {
+          .btn-off {
+            padding: 1em;
+            font-size: 1.2em;
+            margin: 0.5em 0;
             background-color: #333;
+            border: none;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 10px;
           }
 
           .bar-container {
@@ -300,9 +307,9 @@ R"delimiter(
         <!-- Buttons -->
         <div class="container">
           <h2>Pump</h2>
-          <a href="/toggle/1" class="btn PUMP_TEXT">PUMP_TEXT</a>
+          <a href="/toggle/1" class="PUMP_CLASS">PUMP_TEXT</a>
           <h2>Grow LED</h2>
-          <a href="/toggle/2" class="btn GrowLED">GrowLED</a>
+          <a href="/toggle/2" class="LED_CLASS">GrowLED</a>
         </div>
 
         <!-- Bars -->

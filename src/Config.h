@@ -15,8 +15,8 @@
 
 // Sensor calibration values (adjust based on your 3.3V sensors)
 // For soil sensor: dry = high value, wet = low value (inverted)
-#define SOIL_DRY_VALUE 2852    // Analog reading when completely dry
-#define SOIL_WET_VALUE 1902    // Analog reading when fully submerged
+#define SOIL_DRY_VALUE 4095    // Analog reading when completely dry
+#define SOIL_WET_VALUE 549    // Analog reading when fully submerged
 // For water sensor: empty = high value, full = low value (inverted)
 #define WATER_EMPTY_VALUE 0    // Analog reading when empty/dry (no power when dry)
 #define WATER_FULL_VALUE 1460  // Analog reading when fully submerged
@@ -49,9 +49,9 @@
 #define SOIL_GREEN_PIN 21
 #define SOIL_BLUE_PIN 22
 
-// Water Level RGB LED pins (Blue and Green swapped from wire colors)
-#define WATER_RED_PIN 19
-#define WATER_GREEN_PIN 17
+// Water Level RGB LED pins (Blue and Green swapped from wire colors) (because of smd LED)
+#define WATER_RED_PIN 17
+#define WATER_GREEN_PIN 19
 #define WATER_BLUE_PIN 18
 
 // Time configuration

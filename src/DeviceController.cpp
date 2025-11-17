@@ -48,10 +48,13 @@ void DeviceController::begin() {
 void DeviceController::setPumpState(bool state) {
     pumpState = state;
     digitalWrite(PUMP_RELAY, pumpState);
+    Serial.printf("Pump relay set to: %s (GPIO %d = %d)\n", pumpState ? "ON" : "OFF", PUMP_RELAY, pumpState);
 }
 
 void DeviceController::togglePump() {
+    Serial.printf("Toggle pump called - current state: %s\n", pumpState ? "ON" : "OFF");
     setPumpState(!pumpState);
+    Serial.printf("Pump toggled to: %s\n", pumpState ? "ON" : "OFF");
 }
 
 void DeviceController::setGrowLedState(bool state) {
