@@ -2,12 +2,12 @@
 #define SENSORMANAGER_H
 
 #include <Arduino.h>
-#include "DHT.h"
+#include <Adafruit_SHT4x.h>
 #include "Config.h"
 
 class SensorManager {
 private:
-    DHT dht;
+    Adafruit_SHT4x sht4;
     
     // Simulation mode values
     float simulatedTemperature;

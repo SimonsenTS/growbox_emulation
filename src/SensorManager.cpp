@@ -1,12 +1,23 @@
 #include "SensorManager.h"
+#include <Wire.h>
 
-SensorManager::SensorManager() : dht(DHTPIN, DHTTYPE),
+SensorManager::SensorManager() :
     simulatedTemperature(25.0), simulatedHumidity(50.0),
     simulatedSoilPercentage(30), simulatedWaterPercentage(70) {
 }
 
 void SensorManager::begin() {
-    dht.begin();
+    // Initialize I2C for SHT40
+    Wire.begin(SHT40_SDA, SHT40_SCL);
+    
+    if (!sht4.begin()) {
+        Serial.println("ERROR: SHT40 sensor not found!");
+        Serial.println("Check wiring: SDA=GPIO21, SCL=GPIO22");
+    } else {
+        Serial.println("SHT40 sensor initialized successfully");
+        sht4.setPrecision(SHT4X_HIGH_PRECISION);
+        sht4.setHeater(SHT4X_NO_HEATER);
+    }
     
     // Initialize sensor power pins as outputs and turn them OFF initially
     pinMode(SOIL_POWER_PIN, OUTPUT);
@@ -14,7 +25,6 @@ void SensorManager::begin() {
     digitalWrite(SOIL_POWER_PIN, LOW);
     digitalWrite(WATER_POWER_PIN, LOW);
     
-    Serial.println("DHT sensor initialized");
     Serial.println("Sensor power control pins initialized (GPIO " + String(SOIL_POWER_PIN) + " & " + String(WATER_POWER_PIN) + ")");
 }
 
@@ -22,7 +32,9 @@ float SensorManager::readTemperature() {
 #if SIMULATION_MODE
     return simulatedTemperature;
 #else
-    return dht.readTemperature();
+    sensors_event_t humidity, temp;
+    sht4.getEvent(&humidity, &temp);
+    return temp.temperature;
 #endif
 }
 
@@ -30,7 +42,9 @@ float SensorManager::readHumidity() {
 #if SIMULATION_MODE
     return simulatedHumidity;
 #else
-    return dht.readHumidity();
+    sensors_event_t humidity, temp;
+    sht4.getEvent(&humidity, &temp);
+    return humidity.relative_humidity;
 #endif
 }
 

@@ -4,9 +4,10 @@
 // WiFi configuration is now handled through the web interface
 // No need for hardcoded credentials - users configure via GrowBox-Setup AP
 
-// DHT sensor configuration
-#define DHTPIN 4
-#define DHTTYPE DHT11
+// SHT40 sensor configuration (I2C)
+// SDA = GPIO 21, SCL = GPIO 22 (default ESP32 I2C pins)
+#define SHT40_SDA 21
+#define SHT40_SCL 22
 
 // Sensor pins
 #define SOIL_SENSOR_PIN 33
