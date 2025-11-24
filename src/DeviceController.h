@@ -2,6 +2,7 @@
 #define DEVICECONTROLLER_H
 
 #include <Arduino.h>
+#include <Adafruit_NeoPixel.h>
 #include "Config.h"
 
 class DeviceController {
@@ -10,15 +11,13 @@ private:
     bool growLedState;
     int lastBrightness;
     
-    // Soil Moisture RGB LED values
-    int soilRedValue;
-    int soilGreenValue;
-    int soilBlueValue;
+    // WS2812B RGB LEDs
+    Adafruit_NeoPixel soilLED;
+    Adafruit_NeoPixel waterLED;
     
-    // Water Level RGB LED values
-    int waterRedValue;
-    int waterGreenValue;
-    int waterBlueValue;
+    // Current LED color values for tracking
+    uint32_t soilColor;
+    uint32_t waterColor;
     
     unsigned long lastDebounceTime;
     bool lastButtonState;
@@ -39,18 +38,18 @@ public:
     void updateGrowLEDBrightness(int brightness);
     int getBrightness() const { return lastBrightness; }
     
-    // Soil Moisture RGB LED control
+    // Soil Moisture RGB LED control (WS2812B)
     void setSoilRGBColor(int red, int green, int blue);
-    int getSoilRedValue() const { return soilRedValue; }
-    int getSoilGreenValue() const { return soilGreenValue; }
-    int getSoilBlueValue() const { return soilBlueValue; }
+    int getSoilRedValue() const { return (soilColor >> 16) & 0xFF; }
+    int getSoilGreenValue() const { return (soilColor >> 8) & 0xFF; }
+    int getSoilBlueValue() const { return soilColor & 0xFF; }
     void updateSoilMoistureColor(int soilPercentage);
     
-    // Water Level RGB LED control
+    // Water Level RGB LED control (WS2812B)
     void setWaterRGBColor(int red, int green, int blue);
-    int getWaterRedValue() const { return waterRedValue; }
-    int getWaterGreenValue() const { return waterGreenValue; }
-    int getWaterBlueValue() const { return waterBlueValue; }
+    int getWaterRedValue() const { return (waterColor >> 16) & 0xFF; }
+    int getWaterGreenValue() const { return (waterColor >> 8) & 0xFF; }
+    int getWaterBlueValue() const { return waterColor & 0xFF; }
     void updateWaterLevelColor(int waterPercentage);
     
     // Button handling

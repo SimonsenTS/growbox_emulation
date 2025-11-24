@@ -30,30 +30,15 @@
 #define PWM_FREQ 5000
 #define PWM_RESOLUTION 8
 
-// PWM Channels for Soil Moisture RGB LED
-#define SOIL_RED_CHANNEL 0
-#define SOIL_GREEN_CHANNEL 1
-#define SOIL_BLUE_CHANNEL 2
-
-// PWM Channels for Water Level RGB LED
-#define WATER_RED_CHANNEL 3
-#define WATER_GREEN_CHANNEL 4
-#define WATER_BLUE_CHANNEL 5
-
 // Relay and LED pins
 #define PUMP_RELAY 26
 #define GROWLED_RELAY 27
 #define GROWLED_PWM 5
 
-// Soil Moisture RGB LED pins (Blue and Green swapped from wire colors)
-#define SOIL_RED_PIN 23
-#define SOIL_GREEN_PIN 21
-#define SOIL_BLUE_PIN 22
-
-// Water Level RGB LED pins (Blue and Green swapped from wire colors) (because of smd LED)
-#define WATER_RED_PIN 17
-#define WATER_GREEN_PIN 19
-#define WATER_BLUE_PIN 18
+// WS2812B RGB LED pins (addressable)
+#define SOIL_LED_PIN 23      // Data pin for soil moisture WS2812B
+#define WATER_LED_PIN 19     // Data pin for water level WS2812B
+#define NUM_LEDS 1           // One LED per strip
 
 // Time configuration
 #define NTP_SERVER "pool.ntp.org"

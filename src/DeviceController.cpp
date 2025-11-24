@@ -2,8 +2,9 @@
 
 DeviceController::DeviceController() 
     : pumpState(false), growLedState(false), lastBrightness(0),
-      soilRedValue(0), soilGreenValue(0), soilBlueValue(0),
-      waterRedValue(0), waterGreenValue(0), waterBlueValue(0),
+      soilLED(NUM_LEDS, SOIL_LED_PIN, NEO_GRB + NEO_KHZ800),
+      waterLED(NUM_LEDS, WATER_LED_PIN, NEO_GRB + NEO_KHZ800),
+      soilColor(0), waterColor(0),
       lastDebounceTime(0), lastButtonState(HIGH) {
 }
 
@@ -16,33 +17,18 @@ void DeviceController::begin() {
     pinMode(GROWLED_RELAY, OUTPUT);
     digitalWrite(PUMP_RELAY, LOW);
     
-    // Initialize Soil Moisture RGB LED pins as outputs
-    pinMode(SOIL_RED_PIN, OUTPUT);
-    pinMode(SOIL_GREEN_PIN, OUTPUT);
-    pinMode(SOIL_BLUE_PIN, OUTPUT);
+    // Initialize WS2812B RGB LEDs
+    soilLED.begin();
+    soilLED.setBrightness(255);  // Full brightness
+    soilLED.clear();
+    soilLED.show();
     
-    // Initialize Water Level RGB LED pins as outputs
-    pinMode(WATER_RED_PIN, OUTPUT);
-    pinMode(WATER_GREEN_PIN, OUTPUT);
-    pinMode(WATER_BLUE_PIN, OUTPUT);
+    waterLED.begin();
+    waterLED.setBrightness(255);  // Full brightness
+    waterLED.clear();
+    waterLED.show();
     
-    // Setup PWM channels for Soil Moisture RGB LED
-    ledcSetup(SOIL_RED_CHANNEL, PWM_FREQ, PWM_RESOLUTION);
-    ledcSetup(SOIL_GREEN_CHANNEL, PWM_FREQ, PWM_RESOLUTION);
-    ledcSetup(SOIL_BLUE_CHANNEL, PWM_FREQ, PWM_RESOLUTION);
-
-    ledcAttachPin(SOIL_RED_PIN, SOIL_RED_CHANNEL);
-    ledcAttachPin(SOIL_GREEN_PIN, SOIL_GREEN_CHANNEL);
-    ledcAttachPin(SOIL_BLUE_PIN, SOIL_BLUE_CHANNEL);
-    
-    // Setup PWM channels for Water Level RGB LED
-    ledcSetup(WATER_RED_CHANNEL, PWM_FREQ, PWM_RESOLUTION);
-    ledcSetup(WATER_GREEN_CHANNEL, PWM_FREQ, PWM_RESOLUTION);
-    ledcSetup(WATER_BLUE_CHANNEL, PWM_FREQ, PWM_RESOLUTION);
-
-    ledcAttachPin(WATER_RED_PIN, WATER_RED_CHANNEL);
-    ledcAttachPin(WATER_GREEN_PIN, WATER_GREEN_CHANNEL);
-    ledcAttachPin(WATER_BLUE_PIN, WATER_BLUE_CHANNEL);
+    Serial.println("WS2812B LEDs initialized (Soil: GPIO " + String(SOIL_LED_PIN) + ", Water: GPIO " + String(WATER_LED_PIN) + ")");
 }
 
 void DeviceController::setPumpState(bool state) {
@@ -76,22 +62,19 @@ void DeviceController::updateGrowLEDBrightness(int brightness) {
 
 void DeviceController::setSoilRGBColor(int red, int green, int blue) {
     // Clamp values between 0 and 255
-    soilRedValue = constrain(red, 0, 255);
-    soilGreenValue = constrain(green, 0, 255);
-    soilBlueValue = constrain(blue, 0, 255);
+    red = constrain(red, 0, 255);
+    green = constrain(green, 0, 255);
+    blue = constrain(blue, 0, 255);
+
+    // Store color as 32-bit value (0x00RRGGBB)
+    soilColor = ((uint32_t)red << 16) | ((uint32_t)green << 8) | blue;
 
     // Debug output
-    Serial.printf("Setting Soil Moisture LED - R: %d, G: %d, B: %d\n", soilRedValue, soilGreenValue, soilBlueValue);
+    Serial.printf("Setting Soil Moisture LED (WS2812B) - R: %d, G: %d, B: %d\n", red, green, blue);
 
-    // Common cathode RGB LED - no inversion needed
-    // HIGH (255) = LED ON, LOW (0) = LED OFF
-    Serial.printf("Soil LED PWM output - R: %d, G: %d, B: %d (channels %d/%d/%d)\n", 
-                  soilRedValue, soilGreenValue, soilBlueValue,
-                  SOIL_RED_CHANNEL, SOIL_GREEN_CHANNEL, SOIL_BLUE_CHANNEL);
-    
-    ledcWrite(SOIL_RED_CHANNEL, soilRedValue);
-    ledcWrite(SOIL_GREEN_CHANNEL, soilGreenValue);
-    ledcWrite(SOIL_BLUE_CHANNEL, soilBlueValue);
+    // Set WS2812B color and update
+    soilLED.setPixelColor(0, soilLED.Color(red, green, blue));
+    soilLED.show();
 }
 
 void DeviceController::updateSoilMoistureColor(int soilPercentage) {
@@ -109,22 +92,19 @@ void DeviceController::updateSoilMoistureColor(int soilPercentage) {
 
 void DeviceController::setWaterRGBColor(int red, int green, int blue) {
     // Clamp values between 0 and 255
-    waterRedValue = constrain(red, 0, 255);
-    waterGreenValue = constrain(green, 0, 255);
-    waterBlueValue = constrain(blue, 0, 255);
+    red = constrain(red, 0, 255);
+    green = constrain(green, 0, 255);
+    blue = constrain(blue, 0, 255);
+
+    // Store color as 32-bit value (0x00RRGGBB)
+    waterColor = ((uint32_t)red << 16) | ((uint32_t)green << 8) | blue;
 
     // Debug output
-    Serial.printf("Setting Water Level LED - R: %d, G: %d, B: %d\n", waterRedValue, waterGreenValue, waterBlueValue);
+    Serial.printf("Setting Water Level LED (WS2812B) - R: %d, G: %d, B: %d\n", red, green, blue);
 
-    // Common cathode RGB LED - no inversion needed
-    // HIGH (255) = LED ON, LOW (0) = LED OFF
-    Serial.printf("Water LED PWM output - R: %d, G: %d, B: %d (channels %d/%d/%d)\n", 
-                  waterRedValue, waterGreenValue, waterBlueValue,
-                  WATER_RED_CHANNEL, WATER_GREEN_CHANNEL, WATER_BLUE_CHANNEL);
-    
-    ledcWrite(WATER_RED_CHANNEL, waterRedValue);
-    ledcWrite(WATER_GREEN_CHANNEL, waterGreenValue);
-    ledcWrite(WATER_BLUE_CHANNEL, waterBlueValue);
+    // Set WS2812B color and update
+    waterLED.setPixelColor(0, waterLED.Color(red, green, blue));
+    waterLED.show();
 }
 
 void DeviceController::updateWaterLevelColor(int waterPercentage) {
