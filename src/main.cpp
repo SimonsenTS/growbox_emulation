@@ -45,10 +45,9 @@ void setup() {
     
     Serial.println("\n=================================");
     Serial.println("System Ready!");
-    Serial.println("1. Connect to WiFi: GrowBox-Setup");
-    Serial.println("2. Password: growbox123");
-    Serial.println("3. Open browser: http://192.168.4.1");
-    Serial.println("4. Login: admin / password123");
+    Serial.println("1. Connect to WiFi: GrowBox_Setup (Open Network)");
+    Serial.println("2. Open browser: http://192.168.4.1");
+    Serial.println("3. Configure WiFi and set password");
     Serial.println("=================================\n");
 }
 

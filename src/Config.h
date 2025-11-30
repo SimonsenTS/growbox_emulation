@@ -2,7 +2,7 @@
 #define CONFIG_H
 
 // WiFi configuration is now handled through the web interface
-// No need for hardcoded credentials - users configure via GrowBox-Setup AP
+// No need for hardcoded credentials - users configure via GrowBox_Setup AP
 
 // SHT40 sensor configuration (I2C)
 // SDA = GPIO 21, SCL = GPIO 22 (default ESP32 I2C pins)

@@ -30,9 +30,13 @@ void WebServerManager::begin() {
     server.onNotFound([this]() { handleNotFound(); });
     
     server.begin();
+    
+    // Start DNS server for captive portal (redirect all DNS requests to ESP32)
+    dnsServer.start(53, "*", WiFi.softAPIP());
+    
     Serial.println("HTTP server started");
-    Serial.println("Access Point: GrowBox-Setup");
-    Serial.println("Password: growbox123");
+    Serial.println("DNS server started (Captive Portal)");
+    Serial.println("Access Point: GrowBox_Setup (Open Network)");
     Serial.print("URL: http://");
     Serial.println(WiFi.softAPIP());
 }
@@ -217,9 +221,12 @@ void WebServerManager::handleBrightness() {
 }
 
 void WebServerManager::handleNotFound() {
-    Serial.print("Unhandled request for: ");
+    Serial.print("Captive Portal request for: ");
     Serial.println(server.uri());
-    server.send(404, "text/plain", "404: Not Found");
+    
+    // Redirect to root for captive portal
+    server.sendHeader("Location", "/", true);
+    server.send(302, "text/plain", "");
 }
 
 #if SIMULATION_MODE
@@ -269,6 +276,7 @@ void WebServerManager::handleFavicon() {
 }
 
 void WebServerManager::handleClient() {
+    dnsServer.processNextRequest();
     server.handleClient();
 }
 

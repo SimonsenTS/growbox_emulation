@@ -132,15 +132,16 @@ void AuthManager::initAccessPoint() {
     WiFi.disconnect(true);
     WiFi.mode(WIFI_AP);
     
-    bool apSuccess = WiFi.softAP("GrowBox-Setup", "growbox123");
+    // Create open AP with explicit parameters: SSID, no password, channel 1, hidden=false, max connections=4
+    bool apSuccess = WiFi.softAP("GrowBox_Setup", NULL, 1, false, 4);
     
     if (apSuccess) {
         IPAddress IP = WiFi.softAPIP();
         Serial.println("Access Point Started Successfully");
         Serial.print("AP IP address: ");
         Serial.println(IP);
-        Serial.println("Connect to WiFi: GrowBox-Setup");
-        Serial.println("Password: growbox123");
+        Serial.println("Connect to WiFi: GrowBox_Setup (OPEN - NO PASSWORD)");
+        Serial.println("Go to: http://192.168.4.1");
     } else {
         Serial.println("Access Point Failed to Start");
     }

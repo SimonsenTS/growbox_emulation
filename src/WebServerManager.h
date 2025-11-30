@@ -3,6 +3,7 @@
 
 #include <WiFi.h>
 #include <WebServer.h>
+#include <DNSServer.h>
 #include <uri/UriBraces.h>
 #include "Config.h"
 #include "SensorManager.h"
@@ -12,6 +13,7 @@
 class WebServerManager {
 private:
     WebServer server;
+    DNSServer dnsServer;
     SensorManager* sensors;
     DeviceController* devices;
     AuthManager* auth;
