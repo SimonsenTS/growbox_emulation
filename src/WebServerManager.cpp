@@ -27,6 +27,16 @@ void WebServerManager::begin() {
     server.on("/simulation", HTTP_POST, [this]() { handleSimulation(); });
 #endif
     server.on("/favicon.ico", [this]() { handleFavicon(); });
+    
+    // Captive portal detection routes (for various devices)
+    server.on("/generate_204", [this]() { server.sendHeader("Location", "/", true); server.send(302, "text/plain", ""); });
+    server.on("/204", [this]() { server.sendHeader("Location", "/", true); server.send(302, "text/plain", ""); });
+    server.on("/gen_204", [this]() { server.sendHeader("Location", "/", true); server.send(302, "text/plain", ""); });
+    server.on("/hotspot-detect.html", [this]() { server.sendHeader("Location", "/", true); server.send(302, "text/plain", ""); });
+    server.on("/canonical.html", [this]() { server.sendHeader("Location", "/", true); server.send(302, "text/plain", ""); });
+    server.on("/success.txt", [this]() { server.sendHeader("Location", "/", true); server.send(302, "text/plain", ""); });
+    server.on("/ipv6check", [this]() { server.sendHeader("Location", "/", true); server.send(302, "text/plain", ""); });
+    
     server.onNotFound([this]() { handleNotFound(); });
     
     server.begin();
@@ -124,10 +134,21 @@ void WebServerManager::handleDashboard() {
     
     float temperature = sensors->readTemperature();
     float humidity = sensors->readHumidity();
-    int soilPercentage = sensors->getSoilPercentage();
+    // Read water first to avoid interference from soil sensor
     int waterPercentage = sensors->getWaterPercentage();
+    int soilPercentage = sensors->getSoilPercentage();
 
-    // Auto-stop pump if soil is too wet
+    // Auto-stop pump if water runs out (safety first!)
+    if (waterPercentage <= 10 && devices->getPumpState()) {
+        devices->setPumpState(false);
+    }
+    
+    // Auto-start pump if soil is too dry (< 20%) and there's water available
+    if (soilPercentage < 20 && waterPercentage > 10) {
+        devices->setPumpState(true);
+    }
+    
+    // Auto-stop pump if soil is too wet (> 80%)
     if (soilPercentage > 80) {
         devices->setPumpState(false);
     }
@@ -221,10 +242,7 @@ void WebServerManager::handleBrightness() {
 }
 
 void WebServerManager::handleNotFound() {
-    Serial.print("Captive Portal request for: ");
-    Serial.println(server.uri());
-    
-    // Redirect to root for captive portal
+    // Silently redirect unhandled captive portal requests
     server.sendHeader("Location", "/", true);
     server.send(302, "text/plain", "");
 }

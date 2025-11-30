@@ -52,14 +52,20 @@ int SensorManager::readSoilMoisture() {
 #if SIMULATION_MODE
     return map(simulatedSoilPercentage, 0, 100, 0, 4095);
 #else
+    // Ensure both sensors are OFF before reading
+    digitalWrite(SOIL_POWER_PIN, LOW);
+    digitalWrite(WATER_POWER_PIN, LOW);
+    delay(50);
+    
     // Power ON the soil sensor
     digitalWrite(SOIL_POWER_PIN, HIGH);
-    delay(100); // Wait for sensor to stabilize
+    delay(150); // Wait for sensor to stabilize
     
     int soilValue = analogRead(SOIL_SENSOR_PIN);
     
     // Power OFF the soil sensor to prevent corrosion
     digitalWrite(SOIL_POWER_PIN, LOW);
+    delay(50); // Give time for pin to fully discharge
     
     return soilValue;
 #endif
@@ -69,15 +75,21 @@ int SensorManager::readWaterLevel() {
 #if SIMULATION_MODE
     return map(simulatedWaterPercentage, 0, 100, 0, 4095);
 #else
+    // Ensure both sensors are OFF before reading
+    digitalWrite(SOIL_POWER_PIN, LOW);
+    digitalWrite(WATER_POWER_PIN, LOW);
+    delay(50);
+    
     // Power ON the water level sensor
     digitalWrite(WATER_POWER_PIN, HIGH);
     Serial.printf("Water power pin %d set to HIGH\n", WATER_POWER_PIN);
-    delay(100); // Wait for sensor to stabilize
+    delay(150); // Wait for sensor to stabilize
     
     int waterValue = analogRead(WATER_SENSOR_PIN);
     
     // Power OFF the water level sensor to prevent corrosion
     digitalWrite(WATER_POWER_PIN, LOW);
+    delay(50); // Give time for pin to fully discharge
     Serial.printf("Water sensor read: %d (pin %d)\n", waterValue, WATER_SENSOR_PIN);
     
     return waterValue;
@@ -102,7 +114,7 @@ int SensorManager::getWaterPercentage() {
     return simulatedWaterPercentage;
 #else
     int waterLevel = readWaterLevel();
-    // Invert and map: empty (high value) = 0%, full (low value) = 100%
+    // Map normally: empty (low value) = 0%, full (high value) = 100%
     int percentage = map(waterLevel, WATER_EMPTY_VALUE, WATER_FULL_VALUE, 0, 100);
     percentage = constrain(percentage, 0, 100);
     Serial.printf("Water: raw=%d, percentage=%d%%\n", waterLevel, percentage);

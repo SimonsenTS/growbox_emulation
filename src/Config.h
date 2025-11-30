@@ -18,7 +18,7 @@
 // For soil sensor: dry = high value, wet = low value (inverted)
 #define SOIL_DRY_VALUE 4095    // Analog reading when completely dry
 #define SOIL_WET_VALUE 549    // Analog reading when fully submerged
-// For water sensor: empty = high value, full = low value (inverted)
+// For water sensor: empty = low value, full = high value (normal)
 #define WATER_EMPTY_VALUE 0    // Analog reading when empty/dry (no power when dry)
 #define WATER_FULL_VALUE 1460  // Analog reading when fully submerged
 
@@ -50,8 +50,8 @@
 
 // Automatic sensor reading interval (in milliseconds)
 // Set to 0 to disable periodic readings (only read on dashboard access)
-// Default: 300000 ms = 5 minutes
-#define AUTO_SENSOR_INTERVAL 300000
+// Default: 10000 ms = 10 seconds (for responsive auto pump control)
+#define AUTO_SENSOR_INTERVAL 10000
 
 // Simulation mode - set to true to enable manual sensor input
 #define SIMULATION_MODE false
