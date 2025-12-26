@@ -11,20 +11,25 @@
 
 // Sensor pins
 #define SOIL_SENSOR_PIN 33
-#define WATER_SENSOR_PIN 34
+#define WATER_SENSOR_PIN 34  // Not used - Grove Water Level uses I2C
 #define BUTTON_PIN 32
 
 // Sensor calibration values (adjust based on your 3.3V sensors)
 // For soil sensor: dry = high value, wet = low value (inverted)
 #define SOIL_DRY_VALUE 4095    // Analog reading when completely dry
 #define SOIL_WET_VALUE 549    // Analog reading when fully submerged
-// For water sensor: empty = low value, full = high value (normal)
-#define WATER_EMPTY_VALUE 0    // Analog reading when empty/dry (no power when dry)
-#define WATER_FULL_VALUE 1460  // Analog reading when fully submerged
+
+// Grove Water Level Sensor I2C configuration
+// This sensor uses I2C interface with capacitive sensing
+// Detects water levels from 0-10cm with ±5mm accuracy
+#define WATER_LEVEL_I2C_ADDR_HIGH 0x78  // Upper 12 sections
+#define WATER_LEVEL_I2C_ADDR_LOW  0x77  // Lower 8 sections
+#define WATER_LEVEL_THRESHOLD 100       // Capacitive touch threshold
+#define WATER_LEVEL_MAX_SECTIONS 20     // Total 20 sections (8 low + 12 high)
 
 // Sensor power control pins (to prevent corrosion)
 #define SOIL_POWER_PIN 25
-#define WATER_POWER_PIN 14
+#define WATER_POWER_PIN 14  // Not used for Grove Water Level Sensor (I2C powered)
 
 // PWM configuration
 #define PWM_FREQ 5000
@@ -36,7 +41,7 @@
 #define GROWLED_PWM 5
 
 // WS2812B RGB LED pins (addressable)
-#define SOIL_LED_PIN 23      // Data pin for soil moisture WS2812B
+#define SOIL_LED_PIN 18      // Data pin for soil moisture WS2812B (changed from 23 to avoid I2C conflicts)
 #define WATER_LED_PIN 19     // Data pin for water level WS2812B
 #define NUM_LEDS 1           // One LED per strip
 

@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include <Adafruit_SHT4x.h>
+#include <Wire.h>
 #include "Config.h"
 
 class SensorManager {
@@ -14,6 +15,10 @@ private:
     float simulatedHumidity;
     int simulatedSoilPercentage;
     int simulatedWaterPercentage;
+    
+    // Grove Water Level Sensor I2C helper methods
+    void getHigh12SectionValue(unsigned char* high_data);
+    void getLow8SectionValue(unsigned char* low_data);
     
 public:
     SensorManager();

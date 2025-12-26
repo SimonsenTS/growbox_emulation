@@ -21,11 +21,10 @@ void SensorManager::begin() {
     
     // Initialize sensor power pins as outputs and turn them OFF initially
     pinMode(SOIL_POWER_PIN, OUTPUT);
-    pinMode(WATER_POWER_PIN, OUTPUT);
     digitalWrite(SOIL_POWER_PIN, LOW);
-    digitalWrite(WATER_POWER_PIN, LOW);
     
-    Serial.println("Sensor power control pins initialized (GPIO " + String(SOIL_POWER_PIN) + " & " + String(WATER_POWER_PIN) + ")");
+    Serial.println("Sensor power control pin initialized (Soil: GPIO " + String(SOIL_POWER_PIN) + ")");
+    Serial.println("Grove Water Level Sensor uses I2C (Addresses: 0x78, 0x77)");
 }
 
 float SensorManager::readTemperature() {
@@ -71,28 +70,69 @@ int SensorManager::readSoilMoisture() {
 #endif
 }
 
+void SensorManager::getLow8SectionValue(unsigned char* low_data) {
+    memset(low_data, 0, 8);
+    Wire.requestFrom(WATER_LEVEL_I2C_ADDR_LOW, 8);
+    
+    unsigned long timeout = millis() + 100;
+    while (Wire.available() < 8 && millis() < timeout);
+    
+    if (Wire.available() >= 8) {
+        for (int i = 0; i < 8; i++) {
+            low_data[i] = Wire.read();
+        }
+    }
+}
+
+void SensorManager::getHigh12SectionValue(unsigned char* high_data) {
+    memset(high_data, 0, 12);
+    Wire.requestFrom(WATER_LEVEL_I2C_ADDR_HIGH, 12);
+    
+    unsigned long timeout = millis() + 100;
+    while (Wire.available() < 12 && millis() < timeout);
+    
+    if (Wire.available() >= 12) {
+        for (int i = 0; i < 12; i++) {
+            high_data[i] = Wire.read();
+        }
+    }
+}
+
 int SensorManager::readWaterLevel() {
 #if SIMULATION_MODE
-    return map(simulatedWaterPercentage, 0, 100, 0, 4095);
+    return simulatedWaterPercentage;
 #else
-    // Ensure both sensors are OFF before reading
-    digitalWrite(SOIL_POWER_PIN, LOW);
-    digitalWrite(WATER_POWER_PIN, LOW);
-    delay(50);
+    unsigned char low_data[8] = {0};
+    unsigned char high_data[12] = {0};
+    uint32_t touch_val = 0;
+    uint8_t trig_section = 0;
     
-    // Power ON the water level sensor
-    digitalWrite(WATER_POWER_PIN, HIGH);
-    Serial.printf("Water power pin %d set to HIGH\n", WATER_POWER_PIN);
-    delay(150); // Wait for sensor to stabilize
+    // Read data from both I2C addresses
+    getLow8SectionValue(low_data);
+    getHigh12SectionValue(high_data);
     
-    int waterValue = analogRead(WATER_SENSOR_PIN);
+    // Count triggered sections (capacitive touch detection)
+    for (int i = 0; i < 8; i++) {
+        if (low_data[i] > WATER_LEVEL_THRESHOLD) {
+            touch_val |= 1 << i;
+        }
+    }
     
-    // Power OFF the water level sensor to prevent corrosion
-    digitalWrite(WATER_POWER_PIN, LOW);
-    delay(50); // Give time for pin to fully discharge
-    Serial.printf("Water sensor read: %d (pin %d)\n", waterValue, WATER_SENSOR_PIN);
+    for (int i = 0; i < 12; i++) {
+        if (high_data[i] > WATER_LEVEL_THRESHOLD) {
+            touch_val |= (uint32_t)1 << (8 + i);
+        }
+    }
     
-    return waterValue;
+    // Count consecutive triggered sections from bottom
+    while (touch_val & 0x01) {
+        trig_section++;
+        touch_val >>= 1;
+    }
+    
+    Serial.printf("Water level sections triggered: %d/%d\n", trig_section, WATER_LEVEL_MAX_SECTIONS);
+    
+    return trig_section;
 #endif
 }
 
@@ -113,11 +153,12 @@ int SensorManager::getWaterPercentage() {
 #if SIMULATION_MODE
     return simulatedWaterPercentage;
 #else
-    int waterLevel = readWaterLevel();
-    // Map normally: empty (low value) = 0%, full (high value) = 100%
-    int percentage = map(waterLevel, WATER_EMPTY_VALUE, WATER_FULL_VALUE, 0, 100);
+    int sections = readWaterLevel();
+    // Convert sections (0-20) to percentage (0-100%)
+    // Each section represents 5% (20 sections * 5% = 100%)
+    int percentage = (sections * 100) / WATER_LEVEL_MAX_SECTIONS;
     percentage = constrain(percentage, 0, 100);
-    Serial.printf("Water: raw=%d, percentage=%d%%\n", waterLevel, percentage);
+    Serial.printf("Water: sections=%d, percentage=%d%%\n", sections, percentage);
     return percentage;
 #endif
 }
