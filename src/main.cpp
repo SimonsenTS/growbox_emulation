@@ -83,26 +83,22 @@ void loop() {
         Serial.printf("Soil: %d%%, Water: %d%%\n", soilPercentage, waterPercentage);
         Serial.printf("Current Pump State: %s\n", devices.getPumpState() ? "ON" : "OFF");
         
-        // Auto-stop pump if water runs out (safety first!)
+        // Pump control logic (priority order)
+        
+        // 1. SAFETY: Auto-stop pump if water runs out (highest priority!)
         if (waterPercentage <= 10 && devices.getPumpState()) {
             devices.setPumpState(false);
             Serial.println(">>> AUTO-STOP: Water level too low (<= 10%) - PUMP PROTECTION");
         }
-        
-        // Auto-start pump if soil is too dry (< 20%) and water is available
-        if (soilPercentage < 20 && waterPercentage > 10) {
-            if (!devices.getPumpState()) {
-                devices.setPumpState(true);
-                Serial.println(">>> AUTO-START: Soil moisture < 20% (DRY - RED LED)");
-            }
+        // 2. Auto-stop pump if soil is too wet (> 80%)
+        else if (soilPercentage > 80 && devices.getPumpState()) {
+            devices.setPumpState(false);
+            Serial.println(">>> AUTO-STOP: Soil moisture > 80% (WET - GREEN LED)");
         }
-        
-        // Auto-stop pump if soil is too wet (> 80%)
-        if (soilPercentage > 80) {
-            if (devices.getPumpState()) {
-                devices.setPumpState(false);
-                Serial.println(">>> AUTO-STOP: Soil moisture > 80% (WET - GREEN LED)");
-            }
+        // 3. Auto-start pump if soil is too dry (< 20%) and water is available
+        else if (soilPercentage < 20 && waterPercentage > 10 && !devices.getPumpState()) {
+            devices.setPumpState(true);
+            Serial.println(">>> AUTO-START: Soil moisture < 20% (DRY - RED LED)");
         }
     }
 #endif
