@@ -11,6 +11,7 @@ private:
     bool growLedState;
     int lastBrightness;
     int savedBrightness;  // Saves brightness level before turning OFF
+    bool rgbLedsEnabled;  // User control for WS2812B LEDs
     
     // WS2812B RGB LEDs
     Adafruit_NeoPixel soilLED;
@@ -52,6 +53,11 @@ public:
     int getWaterGreenValue() const { return (waterColor >> 8) & 0xFF; }
     int getWaterBlueValue() const { return waterColor & 0xFF; }
     void updateWaterLevelColor(int waterPercentage);
+    
+    // RGB LEDs control (WS2812B enable/disable)
+    void setRGBLedsEnabled(bool enabled);
+    bool getRGBLedsEnabled() const { return rgbLedsEnabled; }
+    void toggleRGBLeds();
     
     // Button handling
     bool checkButton();
