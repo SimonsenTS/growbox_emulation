@@ -1,7 +1,7 @@
 #include "DeviceController.h"
 
 DeviceController::DeviceController() 
-    : pumpState(false), growLedState(false), lastBrightness(0),
+    : pumpState(false), growLedState(false), lastBrightness(0), savedBrightness(50),
       soilLED(NUM_LEDS, SOIL_LED_PIN, NEO_GRB + NEO_KHZ800),
       waterLED(NUM_LEDS, WATER_LED_PIN, NEO_GRB + NEO_KHZ800),
       soilColor(0), waterColor(0),
@@ -46,6 +46,17 @@ void DeviceController::togglePump() {
 void DeviceController::setGrowLedState(bool state) {
     growLedState = state;
     digitalWrite(GROWLED_RELAY, growLedState);
+    
+    if (growLedState) {
+        // Turning ON: restore previous brightness
+        updateGrowLEDBrightness(savedBrightness);
+        Serial.printf("Grow LED turned ON - Restored brightness: %d%%\n", savedBrightness);
+    } else {
+        // Turning OFF: save current brightness and set to 0
+        savedBrightness = lastBrightness;
+        updateGrowLEDBrightness(0);
+        Serial.printf("Grow LED turned OFF - Saved brightness: %d%%\n", savedBrightness);
+    }
 }
 
 void DeviceController::toggleGrowLed() {

@@ -10,6 +10,7 @@ private:
     bool pumpState;
     bool growLedState;
     int lastBrightness;
+    int savedBrightness;  // Saves brightness level before turning OFF
     
     // WS2812B RGB LEDs
     Adafruit_NeoPixel soilLED;
