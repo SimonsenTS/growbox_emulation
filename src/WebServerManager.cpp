@@ -202,6 +202,8 @@ void WebServerManager::handleDashboard() {
     response.replace("LED_CLASS", devices->getGrowLedState() ? "btn" : "btn-off");
     response.replace("RGB_LED", devices->getRGBLedsEnabled() ? "ON" : "OFF");
     response.replace("RGB_CLASS", devices->getRGBLedsEnabled() ? "btn" : "btn-off");
+    response.replace("BOOST_TEXT", devices->getGrowLedBoostState() ? "ON" : "OFF");
+    response.replace("BOOST_CLASS", devices->getGrowLedBoostState() ? "btn" : "btn-off");
 
     // Replace BRIGHTNESS with the actual brightness value
     response.replace("BRIGHTNESS", String(devices->getBrightness()));
@@ -228,6 +230,9 @@ void WebServerManager::handleToggle() {
             break;
         case 3:
             devices->toggleRGBLeds();
+            break;
+        case 4:
+            devices->toggleGrowLedBoost();
             break;
     }
 

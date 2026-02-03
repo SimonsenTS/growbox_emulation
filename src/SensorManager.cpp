@@ -77,8 +77,15 @@ void SensorManager::getLow8SectionValue(unsigned char* low_data) {
     unsigned long timeout = millis() + 100;
     while (Wire.available() < 8 && millis() < timeout);
     
-    if (Wire.available() >= 8) {
+    int available = Wire.available();
+    
+    if (available >= 8) {
         for (int i = 0; i < 8; i++) {
+            low_data[i] = Wire.read();
+        }
+    } else if (available > 0) {
+        // Read whatever is available
+        for (int i = 0; i < available && i < 8; i++) {
             low_data[i] = Wire.read();
         }
     }
@@ -91,8 +98,15 @@ void SensorManager::getHigh12SectionValue(unsigned char* high_data) {
     unsigned long timeout = millis() + 100;
     while (Wire.available() < 12 && millis() < timeout);
     
-    if (Wire.available() >= 12) {
+    int available = Wire.available();
+    
+    if (available >= 12) {
         for (int i = 0; i < 12; i++) {
+            high_data[i] = Wire.read();
+        }
+    } else if (available > 0) {
+        // Read whatever is available
+        for (int i = 0; i < available && i < 12; i++) {
             high_data[i] = Wire.read();
         }
     }
@@ -129,8 +143,6 @@ int SensorManager::readWaterLevel() {
         trig_section++;
         touch_val >>= 1;
     }
-    
-    Serial.printf("Water level sections triggered: %d/%d\n", trig_section, WATER_LEVEL_MAX_SECTIONS);
     
     return trig_section;
 #endif

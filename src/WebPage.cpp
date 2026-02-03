@@ -310,6 +310,8 @@ R"delimiter(
           <a href="/toggle/1" class="PUMP_CLASS">PUMP_TEXT</a>
           <h2>Grow LED</h2>
           <a href="/toggle/2" class="LED_CLASS">GrowLED</a>
+          <h2>LED Boost</h2>
+          <a href="/toggle/4" class="BOOST_CLASS">BOOST_TEXT</a>
           <h2>Status LEDs</h2>
           <a href="/toggle/3" class="RGB_CLASS">RGB_LED</a>
         </div>

@@ -39,6 +39,7 @@
 #define PUMP_RELAY 26
 #define GROWLED_RELAY 27
 #define GROWLED_PWM 5
+#define GROWLED_BOOST 15     // Third wire for additional grow LED power (toggle HIGH/LOW)
 
 // WS2812B RGB LED pins (addressable)
 #define SOIL_LED_PIN 18      // Data pin for soil moisture WS2812B (changed from 23 to avoid I2C conflicts)

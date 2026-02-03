@@ -2,7 +2,7 @@
 
 DeviceController::DeviceController() 
     : pumpState(false), growLedState(false), lastBrightness(0), savedBrightness(50),
-      rgbLedsEnabled(true),
+      rgbLedsEnabled(true), growLedBoostState(false),
       soilLED(NUM_LEDS, SOIL_LED_PIN, NEO_GRB + NEO_KHZ800),
       waterLED(NUM_LEDS, WATER_LED_PIN, NEO_GRB + NEO_KHZ800),
       soilColor(0), waterColor(0),
@@ -16,7 +16,12 @@ void DeviceController::begin() {
     // Initialize relay pins as outputs
     pinMode(PUMP_RELAY, OUTPUT);
     pinMode(GROWLED_RELAY, OUTPUT);
+    pinMode(GROWLED_BOOST, OUTPUT);
     digitalWrite(PUMP_RELAY, LOW);
+    digitalWrite(GROWLED_BOOST, HIGH);  // Default to HIGH (low light mode)
+    
+    // Ensure GROWLED_BOOST has strong drive capability for proper grounding
+    gpio_set_drive_capability((gpio_num_t)GROWLED_BOOST, GPIO_DRIVE_CAP_3);
     
     // Initialize WS2812B RGB LEDs
     soilLED.begin();
@@ -70,6 +75,29 @@ void DeviceController::updateGrowLEDBrightness(int brightness) {
     analogWrite(GROWLED_PWM, pwmValue);
     Serial.print("Brightness value ");
     Serial.println(brightness);
+}
+
+void DeviceController::setGrowLedBoostState(bool state) {
+    growLedBoostState = state;
+    // Inverted logic: state=true (boost ON) = LOW (ground), state=false (boost OFF) = HIGH
+    if (growLedBoostState) {
+        // Boost ON: Set to LOW with strong drive for proper ground
+        pinMode(GROWLED_BOOST, OUTPUT);
+        digitalWrite(GROWLED_BOOST, LOW);
+        gpio_set_drive_capability((gpio_num_t)GROWLED_BOOST, GPIO_DRIVE_CAP_3);
+    } else {
+        // Boost OFF: Set to HIGH
+        pinMode(GROWLED_BOOST, OUTPUT);
+        digitalWrite(GROWLED_BOOST, HIGH);
+    }
+    Serial.printf("Grow LED Boost (GPIO %d) set to: %s (%s)\n", 
+                  GROWLED_BOOST, 
+                  growLedBoostState ? "BOOST ON" : "BOOST OFF",
+                  growLedBoostState ? "LOW/Ground" : "HIGH");
+}
+
+void DeviceController::toggleGrowLedBoost() {
+    setGrowLedBoostState(!growLedBoostState);
 }
 
 void DeviceController::setSoilRGBColor(int red, int green, int blue) {

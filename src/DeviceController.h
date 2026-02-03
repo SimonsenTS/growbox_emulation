@@ -12,6 +12,7 @@ private:
     int lastBrightness;
     int savedBrightness;  // Saves brightness level before turning OFF
     bool rgbLedsEnabled;  // User control for WS2812B LEDs
+    bool growLedBoostState;  // Third wire state (HIGH/LOW)
     
     // WS2812B RGB LEDs
     Adafruit_NeoPixel soilLED;
@@ -39,6 +40,11 @@ public:
     void toggleGrowLed();
     void updateGrowLEDBrightness(int brightness);
     int getBrightness() const { return lastBrightness; }
+    
+    // Grow LED Boost control (third wire)
+    void setGrowLedBoostState(bool state);
+    bool getGrowLedBoostState() const { return growLedBoostState; }
+    void toggleGrowLedBoost();
     
     // Soil Moisture RGB LED control (WS2812B)
     void setSoilRGBColor(int red, int green, int blue);
