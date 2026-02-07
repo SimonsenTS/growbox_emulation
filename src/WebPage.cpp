@@ -71,6 +71,8 @@ String WebPage::getHTML() {
           }
 
           .btn {
+            display: block;
+            width: 100%;
             padding: 1em;
             font-size: 1.2em;
             margin: 0.5em 0;
@@ -79,9 +81,12 @@ String WebPage::getHTML() {
             color: #fff;
             text-decoration: none;
             border-radius: 10px;
+            box-sizing: border-box;
           }
           
           .btn-off {
+            display: block;
+            width: 100%;
             padding: 1em;
             font-size: 1.2em;
             margin: 0.5em 0;
@@ -90,6 +95,7 @@ String WebPage::getHTML() {
             color: #fff;
             text-decoration: none;
             border-radius: 10px;
+            box-sizing: border-box;
           }
 
           .bar-container {

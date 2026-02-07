@@ -18,10 +18,7 @@ void DeviceController::begin() {
     pinMode(GROWLED_RELAY, OUTPUT);
     pinMode(GROWLED_BOOST, OUTPUT);
     digitalWrite(PUMP_RELAY, LOW);
-    digitalWrite(GROWLED_BOOST, HIGH);  // Default to HIGH (low light mode)
-    
-    // Ensure GROWLED_BOOST has strong drive capability for proper grounding
-    gpio_set_drive_capability((gpio_num_t)GROWLED_BOOST, GPIO_DRIVE_CAP_3);
+    digitalWrite(GROWLED_BOOST, LOW);  // Default to LOW (boost OFF)
     
     // Initialize WS2812B RGB LEDs
     soilLED.begin();
@@ -61,6 +58,11 @@ void DeviceController::setGrowLedState(bool state) {
         // Turning OFF: save current brightness and set to 0
         savedBrightness = lastBrightness;
         updateGrowLEDBrightness(0);
+        // Also turn off boost when Grow LED is turned off
+        if (growLedBoostState) {
+            setGrowLedBoostState(false);
+            Serial.println("LED Boost auto-disabled (Grow LED turned OFF)");
+        }
         Serial.printf("Grow LED turned OFF - Saved brightness: %d%%\n", savedBrightness);
     }
 }
@@ -78,22 +80,27 @@ void DeviceController::updateGrowLEDBrightness(int brightness) {
 }
 
 void DeviceController::setGrowLedBoostState(bool state) {
+    // Don't allow boost to be turned ON if Grow LED is OFF
+    if (state && !growLedState) {
+        Serial.println("Cannot enable LED Boost: Grow LED is OFF");
+        return;
+    }
+    
     growLedBoostState = state;
-    // Inverted logic: state=true (boost ON) = LOW (ground), state=false (boost OFF) = HIGH
+    // With transistor: state=true (boost ON) = HIGH, state=false (boost OFF) = LOW
     if (growLedBoostState) {
-        // Boost ON: Set to LOW with strong drive for proper ground
-        pinMode(GROWLED_BOOST, OUTPUT);
-        digitalWrite(GROWLED_BOOST, LOW);
-        gpio_set_drive_capability((gpio_num_t)GROWLED_BOOST, GPIO_DRIVE_CAP_3);
-    } else {
-        // Boost OFF: Set to HIGH
+        // Boost ON: Set to OUTPUT HIGH (transistor pulls to ground)
         pinMode(GROWLED_BOOST, OUTPUT);
         digitalWrite(GROWLED_BOOST, HIGH);
+    } else {
+        // Boost OFF: Set to OUTPUT LOW
+        pinMode(GROWLED_BOOST, OUTPUT);
+        digitalWrite(GROWLED_BOOST, LOW);
     }
     Serial.printf("Grow LED Boost (GPIO %d) set to: %s (%s)\n", 
                   GROWLED_BOOST, 
                   growLedBoostState ? "BOOST ON" : "BOOST OFF",
-                  growLedBoostState ? "LOW/Ground" : "HIGH");
+                  growLedBoostState ? "HIGH (transistor grounds)" : "LOW");
 }
 
 void DeviceController::toggleGrowLedBoost() {
