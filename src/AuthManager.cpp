@@ -129,24 +129,62 @@ String AuthManager::getLoginPageHTML() const {
 }
 
 void AuthManager::initAccessPoint() {
-    WiFi.disconnect(true);
-    WiFi.mode(WIFI_AP);
+    Serial.println("Initializing WiFi Access Point for ESP32-S3...");
     
-    // Create open AP with explicit parameters: SSID, no password, channel 1, hidden=false, max connections=4
-    bool apSuccess = WiFi.softAP("GrowBox_Setup", NULL, 1, false, 4);
+    // ESP32-S3 specific: Complete reset and initialization sequence
+    WiFi.disconnect(true);
+    WiFi.mode(WIFI_OFF);
+    delay(500);
+    
+    // Enable WiFi in AP mode
+    WiFi.mode(WIFI_AP);
+    delay(500);
+    
+    // Configure and start AP with simpler parameters for ESP32-S3
+    Serial.println("Starting Access Point: GrowBox_Setup");
+    bool apSuccess = WiFi.softAP("GrowBox_Setup");
+    
+    delay(1000);  // Give more time for AP to stabilize on S3
     
     if (apSuccess) {
         IPAddress IP = WiFi.softAPIP();
-        Serial.println("Access Point Started Successfully");
+        Serial.println("========================================");
+        Serial.println("Access Point Started Successfully!");
+        Serial.print("AP SSID: GrowBox_Setup");
+        Serial.println(" (OPEN - NO PASSWORD)");
         Serial.print("AP IP address: ");
         Serial.println(IP);
-        Serial.println("Connect to WiFi: GrowBox_Setup (OPEN - NO PASSWORD)");
-        Serial.println("Go to: http://192.168.4.1");
+        Serial.println("Connect to: http://192.168.4.1");
+        Serial.println("========================================");
     } else {
-        Serial.println("Access Point Failed to Start");
+        Serial.println("!!! Access Point Failed to Start !!!");
+        Serial.println("Attempting alternative AP configuration...");
+        
+        // Alternative approach with explicit IP configuration
+        WiFi.mode(WIFI_OFF);
+        delay(500);
+        WiFi.mode(WIFI_AP);
+        delay(500);
+        
+        IPAddress local_IP(192, 168, 4, 1);
+        IPAddress gateway(192, 168, 4, 1);
+        IPAddress subnet(255, 255, 255, 0);
+        
+        WiFi.softAPConfig(local_IP, gateway, subnet);
+        apSuccess = WiFi.softAP("GrowBox_Setup", "", 1, 0, 4);
+        
+        delay(1000);
+        
+        if (apSuccess) {
+            IPAddress IP = WiFi.softAPIP();
+            Serial.println("Access Point Started on Retry!");
+            Serial.print("AP IP address: ");
+            Serial.println(IP);
+        } else {
+            Serial.println("!!! CRITICAL: AP Failed on Retry !!!");
+            Serial.println("Please reset the device");
+        }
     }
-    
-    delay(500);
 }
 
 bool AuthManager::connectToWiFi(const String& ssid, const String& password) {

@@ -5,14 +5,15 @@
 // No need for hardcoded credentials - users configure via GrowBox_Setup AP
 
 // SHT40 sensor configuration (I2C)
-// SDA = GPIO 21, SCL = GPIO 22 (default ESP32 I2C pins)
-#define SHT40_SDA 21
-#define SHT40_SCL 22
+// ESP32-S3: Must use valid I2C pins (21/22 don't work on S3!)
+// Common S3 I2C pins: GPIO 8/9, GPIO 35/36, or GPIO 1/2
+#define SHT40_SDA 8
+#define SHT40_SCL 9
 
-// Sensor pins
-#define SOIL_SENSOR_PIN 33
-#define WATER_SENSOR_PIN 34  // Not used - Grove Water Level uses I2C
-#define BUTTON_PIN 32
+// Sensor pins (ESP32-S3 compatible - ADC1 channels)
+#define SOIL_SENSOR_PIN 4      // ADC1_CH3
+#define WATER_SENSOR_PIN 5     // Not used - Grove Water Level uses I2C (ADC1_CH4)
+#define BUTTON_PIN 0           // BOOT button or external button
 
 // Sensor calibration values (adjust based on your 3.3V sensors)
 // For soil sensor: dry = high value, wet = low value (inverted)
@@ -28,23 +29,23 @@
 #define WATER_LEVEL_MAX_SECTIONS 20     // Total 20 sections (8 low + 12 high)
 
 // Sensor power control pins (to prevent corrosion)
-#define SOIL_POWER_PIN 25
-#define WATER_POWER_PIN 14  // Not used for Grove Water Level Sensor (I2C powered)
+#define SOIL_POWER_PIN 6       // ESP32-S3 safe GPIO
+#define WATER_POWER_PIN 7      // Not used for Grove Water Level Sensor (I2C powered)
 
 // PWM configuration
 #define PWM_FREQ 5000
 #define PWM_RESOLUTION 8
 
-// Relay and LED pins
-#define PUMP_RELAY 26
-#define GROWLED_RELAY 27
-#define GROWLED_PWM 5
-#define GROWLED_BOOST 15     // Third wire for additional grow LED power (toggle HIGH/LOW)
+// Relay and LED pins (ESP32-S3 compatible - GPIO 26-32 don't exist)
+#define PUMP_RELAY 10          // Safe GPIO for relay
+#define GROWLED_RELAY 11       // Safe GPIO for relay
+#define GROWLED_PWM 12         // PWM capable pin
+#define GROWLED_BOOST 13       // Third wire for additional grow LED power (toggle HIGH/LOW)
 
-// WS2812B RGB LED pins (addressable)
-#define SOIL_LED_PIN 18      // Data pin for soil moisture WS2812B (changed from 23 to avoid I2C conflicts)
-#define WATER_LED_PIN 19     // Data pin for water level WS2812B
-#define NUM_LEDS 1           // One LED per strip
+// WS2812B RGB LED pins (addressable) - ESP32-S3 compatible
+#define SOIL_LED_PIN 1         // Data pin for soil moisture WS2812B
+#define WATER_LED_PIN 2        // Data pin for water level WS2812B
+#define NUM_LEDS 1             // One LED per strip
 
 // Time configuration
 #define NTP_SERVER "pool.ntp.org"

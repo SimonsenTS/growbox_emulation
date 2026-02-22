@@ -7,24 +7,40 @@ SensorManager::SensorManager() :
 }
 
 void SensorManager::begin() {
-    // Initialize I2C for SHT40
+    // Initialize I2C for SHT40 and Grove Water Sensor
     Wire.begin(SHT40_SDA, SHT40_SCL);
+    Wire.setClock(100000);  // Set I2C to 100kHz for better stability
     
     if (!sht4.begin()) {
         Serial.println("ERROR: SHT40 sensor not found!");
-        Serial.println("Check wiring: SDA=GPIO21, SCL=GPIO22");
+        Serial.printf("Check wiring: SDA=GPIO%d, SCL=GPIO%d\n", SHT40_SDA, SHT40_SCL);
     } else {
         Serial.println("SHT40 sensor initialized successfully");
         sht4.setPrecision(SHT4X_HIGH_PRECISION);
         sht4.setHeater(SHT4X_NO_HEATER);
     }
     
+    // Check if Grove Water Level Sensor is present
+    Serial.println("Checking for Grove Water Level Sensor...");
+    Wire.beginTransmission(WATER_LEVEL_I2C_ADDR_LOW);
+    byte error_low = Wire.endTransmission();
+    Wire.beginTransmission(WATER_LEVEL_I2C_ADDR_HIGH);
+    byte error_high = Wire.endTransmission();
+    
+    if (error_low == 0 && error_high == 0) {
+        Serial.println("Grove Water Level Sensor found (Addresses: 0x77, 0x78)");
+    } else {
+        Serial.println("WARNING: Grove Water Level Sensor NOT detected!");
+        Serial.printf("I2C scan result - 0x77: %s, 0x78: %s\n", 
+                     error_low == 0 ? "OK" : "FAIL",
+                     error_high == 0 ? "OK" : "FAIL");
+    }
+    
     // Initialize sensor power pins as outputs and turn them OFF initially
     pinMode(SOIL_POWER_PIN, OUTPUT);
     digitalWrite(SOIL_POWER_PIN, LOW);
     
-    Serial.println("Sensor power control pin initialized (Soil: GPIO " + String(SOIL_POWER_PIN) + ")");
-    Serial.println("Grove Water Level Sensor uses I2C (Addresses: 0x78, 0x77)");
+    Serial.printf("Sensor power control pin initialized (Soil: GPIO %d)\n", SOIL_POWER_PIN);
 }
 
 float SensorManager::readTemperature() {
@@ -72,6 +88,13 @@ int SensorManager::readSoilMoisture() {
 
 void SensorManager::getLow8SectionValue(unsigned char* low_data) {
     memset(low_data, 0, 8);
+    
+    // Check if device responds before requesting data
+    Wire.beginTransmission(WATER_LEVEL_I2C_ADDR_LOW);
+    if (Wire.endTransmission() != 0) {
+        return;  // Device not responding, return zeros
+    }
+    
     Wire.requestFrom(WATER_LEVEL_I2C_ADDR_LOW, 8);
     
     unsigned long timeout = millis() + 100;
@@ -93,6 +116,13 @@ void SensorManager::getLow8SectionValue(unsigned char* low_data) {
 
 void SensorManager::getHigh12SectionValue(unsigned char* high_data) {
     memset(high_data, 0, 12);
+    
+    // Check if device responds before requesting data
+    Wire.beginTransmission(WATER_LEVEL_I2C_ADDR_HIGH);
+    if (Wire.endTransmission() != 0) {
+        return;  // Device not responding, return zeros
+    }
+    
     Wire.requestFrom(WATER_LEVEL_I2C_ADDR_HIGH, 12);
     
     unsigned long timeout = millis() + 100;
