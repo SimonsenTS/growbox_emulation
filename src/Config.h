@@ -5,10 +5,10 @@
 // No need for hardcoded credentials - users configure via GrowBox_Setup AP
 
 // SHT40 sensor configuration (I2C)
-// ESP32-S3: Must use valid I2C pins (21/22 don't work on S3!)
-// Common S3 I2C pins: GPIO 8/9, GPIO 35/36, or GPIO 1/2
-#define SHT40_SDA 8
-#define SHT40_SCL 9
+// ESP32-S3-Mini-1: Only GPIO 0-21 are exposed. GPIO 22+ are used internally for flash.
+// Avoid strapping pins: 0, 3, 45, 46. Avoid USB: 19, 20. Avoid boot issues: 8, 9.
+#define SHT40_SDA 18
+#define SHT40_SCL 17
 
 // Sensor pins (ESP32-S3 compatible - ADC1 channels)
 #define SOIL_SENSOR_PIN 4      // ADC1_CH3
@@ -43,8 +43,8 @@
 #define GROWLED_BOOST 13       // Third wire for additional grow LED power (toggle HIGH/LOW)
 
 // WS2812B RGB LED pins (addressable) - ESP32-S3 compatible
-#define SOIL_LED_PIN 1         // Data pin for soil moisture WS2812B
-#define WATER_LED_PIN 2        // Data pin for water level WS2812B
+#define SOIL_LED_PIN 35        // Data pin for soil moisture WS2812B
+#define WATER_LED_PIN 36       // Data pin for water level WS2812B
 #define NUM_LEDS 1             // One LED per strip
 
 // Time configuration
@@ -57,8 +57,7 @@
 
 // Automatic sensor reading interval (in milliseconds)
 // Set to 0 to disable periodic readings (only read on dashboard access)
-// Default: 10000 ms = 10 seconds (for responsive auto pump control)
-#define AUTO_SENSOR_INTERVAL 10000
+#define AUTO_SENSOR_INTERVAL 1000  // 1 second
 
 // Simulation mode - set to true to enable manual sensor input
 #define SIMULATION_MODE false

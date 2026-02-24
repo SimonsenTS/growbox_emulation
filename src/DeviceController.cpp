@@ -17,8 +17,11 @@ void DeviceController::begin() {
     pinMode(PUMP_RELAY, OUTPUT);
     pinMode(GROWLED_RELAY, OUTPUT);
     pinMode(GROWLED_BOOST, OUTPUT);
+    pinMode(GROWLED_PWM, OUTPUT);
     digitalWrite(PUMP_RELAY, LOW);
-    digitalWrite(GROWLED_BOOST, LOW);  // Default to LOW (boost OFF)
+    digitalWrite(GROWLED_RELAY, LOW);  // Grow LED OFF at startup
+    digitalWrite(GROWLED_BOOST, LOW);  // Boost OFF at startup
+    analogWrite(GROWLED_PWM, 0);       // PWM 0 at startup - no light leaking through
     
     // Initialize WS2812B RGB LEDs
     soilLED.begin();

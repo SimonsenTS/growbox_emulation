@@ -17,7 +17,7 @@ unsigned long lastSensorReadTime = 0;
 
 void setup() {
     Serial.begin(115200);
-    delay(1000);
+    delay(2000);  // 2s - gives time for serial monitor to connect
     
     Serial.println("\n=================================");
     Serial.println("GrowBox System Starting...");
@@ -66,7 +66,8 @@ void loop() {
     if (currentTime - lastSensorReadTime >= AUTO_SENSOR_INTERVAL) {
         lastSensorReadTime = currentTime;
         
-        // Read all sensors
+        // Read all sensors (measure ENS210 once to avoid double 130ms blocking)
+        sensors.measureENS210();
         float temperature = sensors.readTemperature();
         float humidity = sensors.readHumidity();
         // Read water first to avoid interference from soil sensor
@@ -77,11 +78,14 @@ void loop() {
         devices.updateSoilMoistureColor(soilPercentage);
         devices.updateWaterLevelColor(waterPercentage);
         
-        // Log readings first
-        Serial.println("=== Automatic Sensor Reading ===");
-        Serial.printf("Temperature: %.1f°C, Humidity: %.1f%%\n", temperature, humidity);
+        // Log readings
+        Serial.println("=== Sensor Reading ===");
+        if (temperature <= -998.0f)
+            Serial.println("Temperature: N/A (ENS210 not found)");
+        else
+            Serial.printf("Temperature: %.1f C, Humidity: %.1f%%\n", temperature, humidity);
         Serial.printf("Soil: %d%%, Water: %d%%\n", soilPercentage, waterPercentage);
-        Serial.printf("Current Pump State: %s\n", devices.getPumpState() ? "ON" : "OFF");
+        Serial.printf("Pump: %s\n", devices.getPumpState() ? "ON" : "OFF");
         
         // Pump control logic (priority order)
         
@@ -90,12 +94,12 @@ void loop() {
             devices.setPumpState(false);
             Serial.println(">>> AUTO-STOP: Water level too low (<= 10%) - PUMP PROTECTION");
         }
-        // 2. Auto-stop pump if soil is too wet (> 80%)
-        else if (soilPercentage > 80 && devices.getPumpState()) {
+        // 2. Auto-stop pump as soon as soil turns GREEN (>= 60%)
+        else if (soilPercentage >= 60 && devices.getPumpState()) {
             devices.setPumpState(false);
-            Serial.println(">>> AUTO-STOP: Soil moisture > 80% (WET - GREEN LED)");
+            Serial.println(">>> AUTO-STOP: Soil moisture >= 60% (WET - GREEN LED)");
         }
-        // 3. Auto-start pump if soil is too dry (< 20%) and water is available
+        // 3. Auto-start pump if soil is too dry (RED, < 20%) and water is available
         else if (soilPercentage < 20 && waterPercentage > 10 && !devices.getPumpState()) {
             devices.setPumpState(true);
             Serial.println(">>> AUTO-START: Soil moisture < 20% (DRY - RED LED)");

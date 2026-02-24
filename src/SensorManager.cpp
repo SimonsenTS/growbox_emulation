@@ -1,5 +1,6 @@
 #include "SensorManager.h"
 #include <Wire.h>
+#include <ens210.h>
 
 SensorManager::SensorManager() :
     simulatedTemperature(25.0), simulatedHumidity(50.0),
@@ -7,49 +8,75 @@ SensorManager::SensorManager() :
 }
 
 void SensorManager::begin() {
-    // Initialize I2C for SHT40 and Grove Water Sensor
-    Wire.begin(SHT40_SDA, SHT40_SCL);
-    Wire.setClock(100000);  // Set I2C to 100kHz for better stability
-    
-    if (!sht4.begin()) {
-        Serial.println("ERROR: SHT40 sensor not found!");
-        Serial.printf("Check wiring: SDA=GPIO%d, SCL=GPIO%d\n", SHT40_SDA, SHT40_SCL);
-    } else {
-        Serial.println("SHT40 sensor initialized successfully");
-        sht4.setPrecision(SHT4X_HIGH_PRECISION);
-        sht4.setHeater(SHT4X_NO_HEATER);
+    // --- I2C Bus Recovery ---
+    // If ENS210 or any device is holding SDA low after power-on/reset,
+    // manually clock SCL 9 times to force the device to release SDA.
+    pinMode(SHT40_SCL, OUTPUT);
+    pinMode(SHT40_SDA, INPUT_PULLUP);
+    for (int i = 0; i < 9; i++) {
+        digitalWrite(SHT40_SCL, HIGH); delayMicroseconds(5);
+        digitalWrite(SHT40_SCL, LOW);  delayMicroseconds(5);
     }
-    
-    // Check if Grove Water Level Sensor is present
-    Serial.println("Checking for Grove Water Level Sensor...");
+    // Send a STOP condition (SDA low→high while SCL high)
+    pinMode(SHT40_SDA, OUTPUT);
+    digitalWrite(SHT40_SDA, LOW);  delayMicroseconds(5);
+    digitalWrite(SHT40_SCL, HIGH); delayMicroseconds(5);
+    digitalWrite(SHT40_SDA, HIGH); delayMicroseconds(5);
+    // Pins back to input before Wire takes over
+    pinMode(SHT40_SCL, INPUT);
+    pinMode(SHT40_SDA, INPUT);
+    delay(10);
+
+    // --- Active sensor: ENS210 ---
+    // Wire must be initialised with our custom pins BEFORE ens210.begin(),
+    // because the library's _i2c_init() calls Wire.begin() with no arguments.
+    Wire.begin(SHT40_SDA, SHT40_SCL);   // SDA=GPIO18, SCL=GPIO17
+    Wire.setClock(100000);
+    Wire.setTimeOut(50);
+    delay(10);
+
+    ens210Found = ens210.begin();
+    if (!ens210Found) {
+        Serial.println("ERROR: ENS210 not found! Check SDA=GPIO18, SCL=GPIO17");
+    } else {
+        Serial.println("ENS210 OK");
+    }
+
+    // Check Grove Water Level Sensor
     Wire.beginTransmission(WATER_LEVEL_I2C_ADDR_LOW);
     byte error_low = Wire.endTransmission();
     Wire.beginTransmission(WATER_LEVEL_I2C_ADDR_HIGH);
     byte error_high = Wire.endTransmission();
-    
     if (error_low == 0 && error_high == 0) {
-        Serial.println("Grove Water Level Sensor found (Addresses: 0x77, 0x78)");
+        Serial.println("Grove Water Level Sensor OK (0x77, 0x78)");
     } else {
-        Serial.println("WARNING: Grove Water Level Sensor NOT detected!");
-        Serial.printf("I2C scan result - 0x77: %s, 0x78: %s\n", 
-                     error_low == 0 ? "OK" : "FAIL",
-                     error_high == 0 ? "OK" : "FAIL");
+        Serial.printf("WARNING: Grove Water Level - 0x77: %s, 0x78: %s\n",
+                     error_low == 0 ? "OK" : "MISSING",
+                     error_high == 0 ? "OK" : "MISSING");
     }
-    
+
     // Initialize sensor power pins as outputs and turn them OFF initially
     pinMode(SOIL_POWER_PIN, OUTPUT);
     digitalWrite(SOIL_POWER_PIN, LOW);
-    
-    Serial.printf("Sensor power control pin initialized (Soil: GPIO %d)\n", SOIL_POWER_PIN);
+    pinMode(WATER_POWER_PIN, OUTPUT);
+    digitalWrite(WATER_POWER_PIN, LOW);
+
+    Serial.printf("Sensor power pins initialized (Soil: GPIO%d, Water: GPIO%d)\n", SOIL_POWER_PIN, WATER_POWER_PIN);
+}
+
+void SensorManager::measureENS210() {
+#if !SIMULATION_MODE
+    if (ens210Found)
+        ens210.measure(&_last_t_data, &_last_t_status, &_last_h_data, &_last_h_status);
+#endif
 }
 
 float SensorManager::readTemperature() {
 #if SIMULATION_MODE
     return simulatedTemperature;
 #else
-    sensors_event_t humidity, temp;
-    sht4.getEvent(&humidity, &temp);
-    return temp.temperature;
+    if (!ens210Found || _last_t_status != ENS210_STATUS_OK) return -999.0f;
+    return ens210.toCelsius(_last_t_data, 100) / 100.0f;
 #endif
 }
 
@@ -57,9 +84,8 @@ float SensorManager::readHumidity() {
 #if SIMULATION_MODE
     return simulatedHumidity;
 #else
-    sensors_event_t humidity, temp;
-    sht4.getEvent(&humidity, &temp);
-    return humidity.relative_humidity;
+    if (!ens210Found || _last_h_status != ENS210_STATUS_OK) return -999.0f;
+    return ens210.toPercentageH(_last_h_data, 100) / 100.0f;
 #endif
 }
 

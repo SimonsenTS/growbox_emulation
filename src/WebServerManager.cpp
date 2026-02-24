@@ -28,14 +28,22 @@ void WebServerManager::begin() {
 #endif
     server.on("/favicon.ico", [this]() { handleFavicon(); });
     
-    // Captive portal detection routes (for various devices)
-    server.on("/generate_204", [this]() { server.sendHeader("Location", "/", true); server.send(302, "text/plain", ""); });
-    server.on("/204", [this]() { server.sendHeader("Location", "/", true); server.send(302, "text/plain", ""); });
-    server.on("/gen_204", [this]() { server.sendHeader("Location", "/", true); server.send(302, "text/plain", ""); });
-    server.on("/hotspot-detect.html", [this]() { server.sendHeader("Location", "/", true); server.send(302, "text/plain", ""); });
-    server.on("/canonical.html", [this]() { server.sendHeader("Location", "/", true); server.send(302, "text/plain", ""); });
-    server.on("/success.txt", [this]() { server.sendHeader("Location", "/", true); server.send(302, "text/plain", ""); });
-    server.on("/ipv6check", [this]() { server.sendHeader("Location", "/", true); server.send(302, "text/plain", ""); });
+    // Captive portal detection routes (for various devices/OS)
+    // Android
+    server.on("/generate_204", [this]() { server.sendHeader("Location", "http://192.168.4.1/", true); server.send(302, "text/plain", ""); });
+    server.on("/gen_204", [this]() { server.sendHeader("Location", "http://192.168.4.1/", true); server.send(302, "text/plain", ""); });
+    server.on("/204", [this]() { server.send(204, "text/plain", ""); });
+    // Apple/iOS
+    server.on("/hotspot-detect.html", [this]() { server.sendHeader("Location", "http://192.168.4.1/", true); server.send(302, "text/plain", ""); });
+    server.on("/library/test/success.html", [this]() { server.sendHeader("Location", "http://192.168.4.1/", true); server.send(302, "text/plain", ""); });
+    // Windows
+    server.on("/ncsi.txt", [this]() { server.sendHeader("Location", "http://192.168.4.1/", true); server.send(302, "text/plain", ""); });
+    server.on("/connecttest.txt", [this]() { server.sendHeader("Location", "http://192.168.4.1/", true); server.send(302, "text/plain", ""); });
+    server.on("/redirect", [this]() { server.sendHeader("Location", "http://192.168.4.1/", true); server.send(302, "text/plain", ""); });
+    // Other
+    server.on("/canonical.html", [this]() { server.sendHeader("Location", "http://192.168.4.1/", true); server.send(302, "text/plain", ""); });
+    server.on("/success.txt", [this]() { server.sendHeader("Location", "http://192.168.4.1/", true); server.send(302, "text/plain", ""); });
+    server.on("/ipv6check", [this]() { server.send(200, "text/plain", ""); });
     
     server.onNotFound([this]() { handleNotFound(); });
     
@@ -247,14 +255,24 @@ void WebServerManager::handleBrightness() {
     
     String brightnessValue = server.pathArg(0);
     int brightness = brightnessValue.toInt();
+    brightness = constrain(brightness, 0, 100);
+    // If brightness > 0 and LED is off, turn it on first
+    if (brightness > 0 && !devices->getGrowLedState()) {
+        devices->setGrowLedState(true);
+    }
     devices->updateGrowLEDBrightness(brightness);
     server.send(204);
 }
 
 void WebServerManager::handleNotFound() {
-    // Silently redirect unhandled captive portal requests
-    server.sendHeader("Location", "/", true);
-    server.send(302, "text/plain", "");
+    // Serve login page for any unknown URL - triggers captive portal popup on devices
+    if (auth->isUserAuthenticated()) {
+        server.sendHeader("Location", "/dashboard", true);
+        server.send(302, "text/plain", "");
+    } else {
+        String loginPage = auth->getLoginPageHTML();
+        server.send(200, "text/html", loginPage);
+    }
 }
 
 #if SIMULATION_MODE
@@ -309,13 +327,19 @@ void WebServerManager::handleClient() {
 }
 
 void WebServerManager::initTime() {
-    configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, NTP_SERVER);
-    Serial.println("Time synchronized using NTP");
-
-    struct tm timeinfo;
-    if (getLocalTime(&timeinfo)) {
-        Serial.println(&timeinfo, "Current time: %Y-%m-%d %H:%M:%S");
+    // Only attempt NTP sync if we are connected to an external network (STA mode).
+    // In AP-only mode there is no internet access, so configTime() would spam
+    // WiFiUdp errors every ~4 seconds as SNTP retries indefinitely.
+    if (WiFi.status() == WL_CONNECTED) {
+        configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, NTP_SERVER);
+        Serial.println("NTP sync started (STA mode)");
+        struct tm timeinfo;
+        if (getLocalTime(&timeinfo)) {
+            Serial.println(&timeinfo, "Current time: %Y-%m-%d %H:%M:%S");
+        } else {
+            Serial.println("Failed to obtain time from NTP");
+        }
     } else {
-        Serial.println("Failed to obtain time");
+        Serial.println("Skipping NTP sync (AP-only mode, no internet)");
     }
 }
