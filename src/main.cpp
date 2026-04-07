@@ -66,8 +66,8 @@ void loop() {
     if (currentTime - lastSensorReadTime >= AUTO_SENSOR_INTERVAL) {
         lastSensorReadTime = currentTime;
         
-        // Read all sensors (measure ENS210 once to avoid double 130ms blocking)
-        sensors.measureENS210();
+        // Read all sensors (measure SHT40 once per cycle)
+        sensors.measureSHT40();
         float temperature = sensors.readTemperature();
         float humidity = sensors.readHumidity();
         // Read water first to avoid interference from soil sensor

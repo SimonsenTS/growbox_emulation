@@ -1,6 +1,6 @@
 #include "SensorManager.h"
 #include <Wire.h>
-#include <ens210.h>
+#include <Adafruit_SHT4x.h>
 
 SensorManager::SensorManager() :
     simulatedTemperature(25.0), simulatedHumidity(50.0),
@@ -27,19 +27,19 @@ void SensorManager::begin() {
     pinMode(SHT40_SDA, INPUT);
     delay(10);
 
-    // --- Active sensor: ENS210 ---
-    // Wire must be initialised with our custom pins BEFORE ens210.begin(),
-    // because the library's _i2c_init() calls Wire.begin() with no arguments.
+    // --- Active sensor: SHT40 ---
     Wire.begin(SHT40_SDA, SHT40_SCL);   // SDA=GPIO18, SCL=GPIO17
-    Wire.setClock(100000);
+    Wire.setClock(400000);               // SHT40 supports Fast Mode (400 kHz)
     Wire.setTimeOut(50);
     delay(10);
 
-    ens210Found = ens210.begin();
-    if (!ens210Found) {
-        Serial.println("ERROR: ENS210 not found! Check SDA=GPIO18, SCL=GPIO17");
+    sht4Found = sht4.begin(&Wire);
+    if (!sht4Found) {
+        Serial.println("ERROR: SHT40 not found! Check SDA=GPIO18, SCL=GPIO17");
     } else {
-        Serial.println("ENS210 OK");
+        sht4.setPrecision(SHT4X_HIGH_PRECISION);
+        sht4.setHeater(SHT4X_NO_HEATER);
+        Serial.println("SHT40 OK");
     }
 
     // Check Grove Water Level Sensor
@@ -64,10 +64,14 @@ void SensorManager::begin() {
     Serial.printf("Sensor power pins initialized (Soil: GPIO%d, Water: GPIO%d)\n", SOIL_POWER_PIN, WATER_POWER_PIN);
 }
 
-void SensorManager::measureENS210() {
+void SensorManager::measureSHT40() {
 #if !SIMULATION_MODE
-    if (ens210Found)
-        ens210.measure(&_last_t_data, &_last_t_status, &_last_h_data, &_last_h_status);
+    if (sht4Found) {
+        sensors_event_t humidity, temp;
+        sht4.getEvent(&humidity, &temp);
+        _lastTemp = temp.temperature;
+        _lastHumidity = humidity.relative_humidity;
+    }
 #endif
 }
 
@@ -75,8 +79,8 @@ float SensorManager::readTemperature() {
 #if SIMULATION_MODE
     return simulatedTemperature;
 #else
-    if (!ens210Found || _last_t_status != ENS210_STATUS_OK) return -999.0f;
-    return ens210.toCelsius(_last_t_data, 100) / 100.0f;
+    if (!sht4Found) return -999.0f;
+    return _lastTemp;
 #endif
 }
 
@@ -84,8 +88,8 @@ float SensorManager::readHumidity() {
 #if SIMULATION_MODE
     return simulatedHumidity;
 #else
-    if (!ens210Found || _last_h_status != ENS210_STATUS_OK) return -999.0f;
-    return ens210.toPercentageH(_last_h_data, 100) / 100.0f;
+    if (!sht4Found) return -999.0f;
+    return _lastHumidity;
 #endif
 }
 
