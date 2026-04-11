@@ -10,6 +10,9 @@
 #define SHT40_SDA 18
 #define SHT40_SCL 17
 
+// LTR-303ALS-01 ambient light sensor — to be added in PCB v2 with correct SDA/SCL orientation
+// #define LTR303_INT_PIN 21
+
 // Sensor pins (ESP32-S3 compatible - ADC1 channels)
 #define SOIL_SENSOR_PIN 4      // ADC1_CH3
 #define WATER_SENSOR_PIN 5     // Not used - Grove Water Level uses I2C (ADC1_CH4)
@@ -25,7 +28,7 @@
 // Detects water levels from 0-10cm with ±5mm accuracy
 #define WATER_LEVEL_I2C_ADDR_HIGH 0x78  // Upper 12 sections
 #define WATER_LEVEL_I2C_ADDR_LOW  0x77  // Lower 8 sections
-#define WATER_LEVEL_THRESHOLD 100       // Capacitive touch threshold
+#define WATER_LEVEL_THRESHOLD 50        // Capacitive touch threshold (raw values are 0=dry, ~252=wet)
 #define WATER_LEVEL_MAX_SECTIONS 20     // Total 20 sections (8 low + 12 high)
 
 // Sensor power control pins (to prevent corrosion)

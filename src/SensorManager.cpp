@@ -27,9 +27,9 @@ void SensorManager::begin() {
     pinMode(SHT40_SDA, INPUT);
     delay(10);
 
-    // --- Active sensor: SHT40 ---
+    // --- Wire bus: SHT40 + Grove Water Level ---
     Wire.begin(SHT40_SDA, SHT40_SCL);   // SDA=GPIO18, SCL=GPIO17
-    Wire.setClock(400000);               // SHT40 supports Fast Mode (400 kHz)
+    Wire.setClock(400000);
     Wire.setTimeOut(50);
     delay(10);
 
@@ -60,7 +60,6 @@ void SensorManager::begin() {
     digitalWrite(SOIL_POWER_PIN, LOW);
     pinMode(WATER_POWER_PIN, OUTPUT);
     digitalWrite(WATER_POWER_PIN, LOW);
-
     Serial.printf("Sensor power pins initialized (Soil: GPIO%d, Water: GPIO%d)\n", SOIL_POWER_PIN, WATER_POWER_PIN);
 }
 
@@ -178,32 +177,28 @@ int SensorManager::readWaterLevel() {
 #else
     unsigned char low_data[8] = {0};
     unsigned char high_data[12] = {0};
-    uint32_t touch_val = 0;
     uint8_t trig_section = 0;
     
     // Read data from both I2C addresses
     getLow8SectionValue(low_data);
     getHigh12SectionValue(high_data);
-    
-    // Count triggered sections (capacitive touch detection)
+
+    // Debug: print raw capacitive values
+    Serial.print("[Water] Low  (0x77): ");
+    for (int i = 0; i < 8;  i++) Serial.printf("%3d ", low_data[i]);
+    Serial.println();
+    Serial.print("[Water] High (0x78): ");
+    for (int i = 0; i < 12; i++) Serial.printf("%3d ", high_data[i]);
+    Serial.println();
+
+    // Count all triggered sections (not consecutive from bottom - sensor byte order may vary)
     for (int i = 0; i < 8; i++) {
-        if (low_data[i] > WATER_LEVEL_THRESHOLD) {
-            touch_val |= 1 << i;
-        }
+        if (low_data[i] > WATER_LEVEL_THRESHOLD) trig_section++;
     }
-    
     for (int i = 0; i < 12; i++) {
-        if (high_data[i] > WATER_LEVEL_THRESHOLD) {
-            touch_val |= (uint32_t)1 << (8 + i);
-        }
+        if (high_data[i] > WATER_LEVEL_THRESHOLD) trig_section++;
     }
-    
-    // Count consecutive triggered sections from bottom
-    while (touch_val & 0x01) {
-        trig_section++;
-        touch_val >>= 1;
-    }
-    
+
     return trig_section;
 #endif
 }

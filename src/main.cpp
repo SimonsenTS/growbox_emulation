@@ -81,7 +81,7 @@ void loop() {
         // Log readings
         Serial.println("=== Sensor Reading ===");
         if (temperature <= -998.0f)
-            Serial.println("Temperature: N/A (ENS210 not found)");
+            Serial.println("Temperature: N/A (SHT40 not found)");
         else
             Serial.printf("Temperature: %.1f C, Humidity: %.1f%%\n", temperature, humidity);
         Serial.printf("Soil: %d%%, Water: %d%%\n", soilPercentage, waterPercentage);
