@@ -44,7 +44,23 @@ pio device monitor -b 115200
 
 The default environment is esp32. Its image is .pio/build/esp32/firmware.bin. The build compresses web/ into firmware using scripts/embed_web.py; no filesystem upload is needed. Tested with Espressif32 8.0.0 / Arduino-ESP32 3.3.12.
 
-Connect to the open **GrowBox_Setup** AP and visit **http://192.168.4.1**. Default login: admin / password123. Select an external network or use setup WiFi only. Network scans and connection attempts are asynchronous. Failed external WiFi leaves the setup AP available. The dashboard reports the current IP.
+Connect to the open **GrowBox_Setup** AP and visit **http://192.168.4.1**. Default login: admin / password123. Select your home 2.4 GHz network or use setup WiFi only. Network scans and connection attempts are asynchronous. Failed home WiFi leaves the setup AP available.
+
+## Home WiFi and a named dashboard
+
+1. Join GrowBox_Setup on your phone or computer and open http://192.168.4.1.
+2. Select your router's 2.4 GHz WiFi, enter its password, and log in.
+3. Wait for the dashboard to show Home WiFi connected and the home-network links.
+4. Return your phone or computer to your normal router WiFi in the device's WiFi settings.
+5. Open **http://growbox-dashboard.local**. The dashboard and ordinary internet browsing now use your home network.
+
+The ESP32 stays connected to the router while its setup AP remains available. Your phone/computer can use the router's 2.4 or 5 GHz network if both bands share the same LAN. The webpage cannot switch the phone/computer's WiFi connection automatically.
+
+The hostname is GROWBOX_HOSTNAME in src/Config.h. Its default is growbox-dashboard; mDNS resolves growbox-dashboard.local on the local network. Use the complete http:// address to avoid a browser search. If multicast/mDNS is unavailable, use the home-network IP link displayed during setup or find GrowBox in the router's client list. Guest/client isolation can prevent local device access.
+
+Successful WiFi credentials are saved in the ESP32's NVS and retried after restart or connection loss. Attempts time out after 20 seconds and saved credentials are retried at 30-second intervals. A failed new configuration preserves the last working saved network. Saving failures are reported on the dashboard. Credentials stay on the device and are not included in the network status API.
+
+Remembered login cookies belong to the address used: the first visit to growbox-dashboard.local needs a login even if you already logged in at 192.168.4.1. Keep me signed in remembers the named address thereafter. This URL works on the same LAN; PWA installation still uses the HTTPS/localhost requirements below.
 
 Pins/calibration remain in src/Config.h. Confirm them against your actual ESP32-S3 module. The checked-in diagram.json is an older ESP32/DHT22 prototype, not a validated wiring diagram for the current firmware.
 
@@ -94,6 +110,7 @@ With NTP, the server checks token expiry; without a valid device clock, the brow
 | --- | --- |
 | GET /dashboard | Authenticated dashboard |
 | GET /api/state | Cached state, no sensor acquisition |
+| GET /api/network | Authenticated home WiFi status and dashboard/IP links; no credentials |
 | GET /events | Authenticated change-only SSE stream |
 | POST /api/control | device=pump, growLed, boost, rgb, or brightness with value=0..100 |
 | GET /api/config | Simulation panel availability |
@@ -118,7 +135,7 @@ Compile-time checks exercise the actual pump/lux functions at threshold boundari
 xtensa-esp32s3-elf-g++ -std=c++17 -fsyntax-only -Isrc tests/control_policy.cpp
 ```
 
-Browser tests use actual assets with mock firmware HTTP/SSE transport, covering changed-field DOM updates, controls, simulation, reconnects, errors, mobile overflow and offline/cache isolation. They do not emulate FreeRTOS or physical sensors:
+Browser tests use actual assets with mock firmware HTTP/SSE transport, covering changed-field DOM updates, controls, simulation, reconnects, home-WiFi handoff and IP fallback, errors, mobile overflow and offline/cache isolation. They do not emulate FreeRTOS, physical sensors, radio reconnection, NVS retention or mDNS resolution:
 
 ```sh
 npm --cache .pio/npm-cache install --prefix .pio/browser-tests --no-save --package-lock=false playwright
@@ -127,4 +144,4 @@ node --test tests/browser.test.cjs
 
 Tests use installed Microsoft Edge. Dependencies/screenshots stay under ignored .pio/. Firmware and the optional proxy need no npm packages.
 
-Before putting the firmware into service, verify relay polarity, sensor calibration, wiring, command/button responsiveness during sampling, and pump shutoff when the water sensor is disconnected. No physical device was flashed or benchmarked during this change.
+Before putting the firmware into service, verify relay polarity, sensor calibration, wiring, command/button responsiveness during sampling, and pump shutoff when the water sensor is disconnected. Also check home-WiFi provisioning, saved credentials across power cycles, router reconnection, and name resolution from your phone/computer. No physical device was flashed or benchmarked during this change.

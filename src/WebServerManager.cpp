@@ -1,6 +1,8 @@
 #include "WebServerManager.h"
 #include "WebAssets.h"
 #include <math.h>
+#include <ESPmDNS.h>
+#include <Preferences.h>
 
 namespace {
 void json(AsyncWebServerRequest* request, int code, const String& body) {
@@ -70,11 +72,12 @@ void WebServerManager::begin() {
     server.on("/connect", HTTP_POST, [this](AsyncWebServerRequest* request) { handleConnect(request); });
     server.on("/scan-networks", HTTP_POST, [this](AsyncWebServerRequest* request) {
         // WiFi's asynchronous scan never holds the network task waiting for results.
-        auth->scanNetworks();
+        if (connecting.load()) { json(request, 409, "{\"error\":\"Wait for the WiFi connection attempt to finish\"}"); return; }
+        scanRequested.store(true);
         json(request, 202, "{\"scanning\":true}");
     });
     server.on("/api/networks", HTTP_GET, [this](AsyncWebServerRequest* request) {
-        json(request, 200, String("{\"scanning\":") + (auth->isScanning() ? "true" : "false") +
+        json(request, 200, String("{\"scanning\":") + ((auth->isScanning() || scanRequested.load()) ? "true" : "false") +
             ",\"options\":" + quoteJSON(auth->getNetworksAsOptions()) + "}");
     });
     server.on("/dashboard", HTTP_GET, [this](AsyncWebServerRequest* request) {
@@ -83,6 +86,9 @@ void WebServerManager::begin() {
     });
     server.on("/api/state", HTTP_GET, [this](AsyncWebServerRequest* request) {
         if (checkAuthentication(request)) json(request, 200, stateJSON(hardware->snapshot()));
+    });
+    server.on("/api/network", HTTP_GET, [this](AsyncWebServerRequest* request) {
+        if (checkAuthentication(request)) json(request, 200, networkJSON());
     });
     server.on("/api/control", HTTP_POST, [this](AsyncWebServerRequest* request) { handleControl(request); });
 #if SIMULATION_MODE
@@ -128,6 +134,8 @@ void WebServerManager::begin() {
     });
     server.begin();
     dnsServer.start(53, "*", WiFi.softAPIP());
+    WiFi.setAutoReconnect(false); // retries are scheduled without blocking the server
+    loadSavedWiFi();
     Serial.println("Async HTTP + change-only SSE ready");
 }
 
@@ -219,26 +227,110 @@ String WebServerManager::stateJSON(const GrowboxState& s) {
     return body;
 }
 String WebServerManager::networkJSON() {
-    const bool connected = WiFi.status() == WL_CONNECTED;
-    return String("{\"connected\":") + (connected ? "true" : "false") +
-        ",\"connecting\":" + (connecting ? "true" : "false") +
-        ",\"ip\":\"" + (connected ? WiFi.localIP().toString() : WiFi.softAPIP().toString()) + "\"}";
+    const bool connected = WiFi.status() == WL_CONNECTED && uint32_t(WiFi.localIP()) != 0;
+    const String ip = connected ? WiFi.localIP().toString() : WiFi.softAPIP().toString();
+    String body;
+    body.reserve(450);
+    body = String("{\"connected\":") + (connected ? "true" : "false") +
+        ",\"connecting\":" + (connecting.load() ? "true" : "false") +
+        ",\"saved\":" + (haveSavedWiFi.load() ? "true" : "false") +
+        ",\"saveFailed\":" + (wifiSaveFailed.load() ? "true" : "false") +
+        ",\"failed\":" + (wifiAttemptFailed.load() ? "true" : "false") +
+        ",\"mdns\":" + (mdnsReady.load() ? "true" : "false");
+    body += ",\"ssid\":" + quoteJSON(connected ? WiFi.SSID() : String(""));
+    body += ",\"ip\":\"" + ip + "\",\"apIp\":\"" + WiFi.softAPIP().toString() + "\"";
+    body += String(",\"hostname\":\"") + GROWBOX_HOSTNAME + ".local\"";
+    body += String(",\"dashboardUrl\":\"http://") + GROWBOX_HOSTNAME + ".local/dashboard\"";
+    body += ",\"ipUrl\":\"http://" + ip + "/dashboard\"}";
+    return body;
+}
+void WebServerManager::loadSavedWiFi() {
+    Preferences preferences;
+    if (!preferences.begin("growbox-wifi", true)) return;
+    WiFiRequest credentials{};
+    const bool valid = preferences.getBytesLength("credentials") == sizeof(credentials) &&
+        preferences.getBytes("credentials", &credentials, sizeof(credentials)) == sizeof(credentials) &&
+        memchr(credentials.ssid, 0, sizeof(credentials.ssid)) && credentials.ssid[0] &&
+        memchr(credentials.password, 0, sizeof(credentials.password));
+    preferences.end();
+    if (valid) {
+        savedWiFi = credentials;
+        haveSavedWiFi.store(true);
+        connectStarted = millis() - WIFI_RETRY_INTERVAL_MS; // first loop may reconnect immediately
+    }
+    memset(&credentials, 0, sizeof(credentials));
+}
+void WebServerManager::startWiFi(const WiFiRequest& credentials, bool saveOnSuccess) {
+    activeWiFi = credentials;
+    saveActiveWiFi = saveOnSuccess;
+    wifiSaveFailed.store(false);
+    wifiAttemptFailed.store(false);
+    if (mdnsReady.exchange(false)) MDNS.end();
+    wasConnected = false;
+    WiFi.disconnect(false); // keep setup AP enabled and retain the last working saved configuration
+    connecting.store(true);
+    connectStarted = millis();
+    WiFi.begin(activeWiFi.ssid, activeWiFi.password);
+}
+void WebServerManager::startMDNS() {
+    lastMDNSAttempt = millis();
+    if (MDNS.begin(GROWBOX_HOSTNAME)) {
+        MDNS.addService("http", "tcp", 80);
+        MDNS.addServiceTxt("http", "tcp", "path", "/dashboard");
+        mdnsReady.store(true);
+        Serial.printf("Home dashboard: http://%s.local (IP fallback: http://%s)\n",
+                      GROWBOX_HOSTNAME, WiFi.localIP().toString().c_str());
+    } else {
+        Serial.println("mDNS unavailable; use the home-network IP shown on the dashboard");
+    }
 }
 void WebServerManager::handleWiFi() {
     auth->pollNetworks();
-    WiFiRequest credentials;
-    if (!connecting && wifiRequests && xQueueReceive(wifiRequests, &credentials, 0) == pdTRUE) {
-        WiFi.begin(credentials.ssid, credentials.password); // asynchronous; AP stays enabled
-        memset(&credentials, 0, sizeof(credentials));
-        connecting = true;
-        connectStarted = millis();
+    if (!connecting.load() && scanRequested.exchange(false)) auth->scanNetworks();
+    WiFiRequest credentials{};
+    // A scan and a connection attempt must not compete for the radio.
+    if (!connecting.load() && !auth->isScanning()) {
+        if (wifiRequests && xQueueReceive(wifiRequests, &credentials, 0) == pdTRUE) {
+            startWiFi(credentials, true);
+        } else if (haveSavedWiFi.load() && (WiFi.status() != WL_CONNECTED || uint32_t(WiFi.localIP()) == 0) &&
+                   uint32_t(millis() - connectStarted) >= WIFI_RETRY_INTERVAL_MS) {
+            startWiFi(savedWiFi, false);
+        }
     }
-    if (connecting && WiFi.status() == WL_CONNECTED) {
-        connecting = false;
-        configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, NTP_SERVER); // never wait for NTP
-    } else if (connecting && uint32_t(millis() - connectStarted) >= 15000) {
-        connecting = false;
-        WiFi.disconnect(false); // retain AP and dashboard after bad WiFi credentials
+    memset(&credentials, 0, sizeof(credentials));
+    const bool connected = WiFi.status() == WL_CONNECTED && uint32_t(WiFi.localIP()) != 0;
+    if (connected && (!connecting.load() || WiFi.SSID() == String(activeWiFi.ssid))) {
+        if (connecting.exchange(false)) {
+            if (saveActiveWiFi) {
+                Preferences preferences;
+                bool saved = false;
+                if (preferences.begin("growbox-wifi", false)) {
+                    saved = preferences.putBytes("credentials", &activeWiFi, sizeof(activeWiFi)) == sizeof(activeWiFi);
+                    preferences.end();
+                }
+                wifiSaveFailed.store(!saved);
+                if (saved) { savedWiFi = activeWiFi; haveSavedWiFi.store(true); }
+            }
+            memset(&activeWiFi, 0, sizeof(activeWiFi));
+        }
+        if (!wasConnected) {
+            wasConnected = true;
+            configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, NTP_SERVER);
+            startMDNS();
+        } else if (!mdnsReady.load() && uint32_t(millis() - lastMDNSAttempt) >= WIFI_RETRY_INTERVAL_MS) {
+            startMDNS();
+        }
+    } else {
+        if (wasConnected) {
+            wasConnected = false;
+            if (mdnsReady.exchange(false)) MDNS.end();
+        }
+        if (connecting.load() && uint32_t(millis() - connectStarted) >= WIFI_CONNECTION_TIMEOUT_MS) {
+            connecting.store(false);
+            wifiAttemptFailed.store(true);
+            memset(&activeWiFi, 0, sizeof(activeWiFi));
+            WiFi.disconnect(false); // failed new credentials never overwrite a working saved network
+        }
     }
 }
 void WebServerManager::handleClient() {

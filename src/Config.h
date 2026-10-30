@@ -3,6 +3,9 @@
 
 // WiFi configuration is now handled through the web interface
 // No need for hardcoded credentials - users configure via GrowBox_Setup AP
+#define GROWBOX_HOSTNAME "growbox-dashboard"
+#define WIFI_CONNECTION_TIMEOUT_MS 20000
+#define WIFI_RETRY_INTERVAL_MS 30000
 
 // SHT40 sensor configuration (I2C)
 // ESP32-S3-Mini-1: Only GPIO 0-21 are exposed. GPIO 22+ are used internally for flash.

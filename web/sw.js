@@ -1,6 +1,6 @@
 /* Cache public shell assets only. Never cache measurements, credentials or commands. */
 'use strict';
-const CACHE = 'growbox-shell-v1';
+const CACHE = 'growbox-shell-v2';
 const SHELL = ['/app-shell.html', '/app.css', '/app.js', '/manifest.webmanifest', '/icon-192.png', '/icon-512.png'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting()));

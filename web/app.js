@@ -111,6 +111,23 @@ async function config() {
     if (response.ok) byId('simulation').hidden = !(await response.json()).simulation;
   } catch (_) { /* reconnect will retry */ }
 }
+function renderNetwork(network) {
+  if (network.connected) {
+    text('network', 'Home WiFi connected: ' + network.ssid + ' | ' + network.ip);
+    text('home-ssid', network.ssid);
+    const hostLink = byId('home-dashboard');
+    hostLink.href = network.mdns ? network.dashboardUrl : network.ipUrl;
+    hostLink.textContent = network.mdns ? network.dashboardUrl : network.ipUrl;
+    byId('home-ip').href = network.ipUrl;
+    text('home-ip', network.ipUrl);
+    text('network-save', network.saveFailed ? 'Connected, but WiFi settings could not be saved. Configure WiFi again after a restart.' : network.saved ? 'WiFi settings saved. GrowBox will reconnect automatically after a restart.' : 'WiFi settings have not been saved.');
+    // Show the handoff when viewing setup/proxy; it is unnecessary on the home address.
+    byId('home-network').hidden = location.hostname === network.hostname || location.hostname === network.ip;
+  } else {
+    byId('home-network').hidden = true;
+    text('network', network.connecting ? 'Connecting to home WiFi... setup access remains available.' : network.failed ? 'Home WiFi connection failed. Check WiFi details in setup. The setup access point remains available.' : network.saved ? 'Home WiFi disconnected. GrowBox will retry automatically; setup access remains available.' : 'Setup WiFi only: join your home 2.4 GHz WiFi in setup to use GrowBox and internet together.');
+  }
+}
 function connect() {
   stream = new EventSource('/events');
   stream.addEventListener('state', event => {
@@ -121,7 +138,7 @@ function connect() {
   stream.addEventListener('network', event => {
     lastHeard = Date.now();
     const network = JSON.parse(event.data);
-    text('network', network.connected ? 'WiFi connected \u00b7 ' + network.ip : network.connecting ? 'Connecting WiFi\u2026 setup access point remains available.' : 'Setup access point \u00b7 ' + network.ip + ' \u00b7 external WiFi disconnected');
+    renderNetwork(network);
   });
   stream.addEventListener('error', () => connection(false)); // EventSource reconnects automatically
 }

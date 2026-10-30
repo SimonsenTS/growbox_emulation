@@ -1,4 +1,5 @@
 #include "AuthManager.h"
+#include "Config.h"
 #include <cstring>
 #include <Preferences.h>
 #include <esp_random.h>
@@ -222,6 +223,7 @@ String AuthManager::getLoginPageHTML() const {
     <h1 class="title">GrowBox System</h1>
     <div class="login-form">
         <h2 class="subtitle">WiFi Setup & Login</h2>
+        <p style="max-width:300px">Choose your home 2.4 GHz WiFi below. Once GrowBox connects, return this phone or computer to your home WiFi and open <strong>%DASHBOARD_URL%</strong> to use the dashboard and internet together.</p>
         <form action="/connect" method="POST" autocomplete="on">
             <select name="network">
                 <option value="">Use setup WiFi only</option>
@@ -240,6 +242,7 @@ String AuthManager::getLoginPageHTML() const {
 )delimiter";
     
     html.replace("%NETWORK_LIST%", getNetworksAsOptions());
+    html.replace("%DASHBOARD_URL%", String("http://") + GROWBOX_HOSTNAME + ".local");
     return html;
 }
 
@@ -249,9 +252,10 @@ void AuthManager::initAccessPoint() {
     // ESP32-S3 specific: Complete reset and initialization sequence
     WiFi.disconnect(true);
     WiFi.mode(WIFI_OFF);
+    WiFi.setHostname(GROWBOX_HOSTNAME);
     delay(500);
     
-    // Enable WiFi in AP mode
+    // Setup AP and home-network station share the radio.
     WiFi.mode(WIFI_AP_STA);
     delay(500);
     
@@ -277,6 +281,7 @@ void AuthManager::initAccessPoint() {
         
         // Alternative approach with explicit IP configuration
         WiFi.mode(WIFI_OFF);
+        WiFi.setHostname(GROWBOX_HOSTNAME);
         delay(500);
         WiFi.mode(WIFI_AP_STA);
         delay(500);
