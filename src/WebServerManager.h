@@ -1,43 +1,34 @@
-#ifndef WEBSERVERMANAGER_H
-#define WEBSERVERMANAGER_H
-
+#pragma once
 #include <WiFi.h>
-#include <WebServer.h>
+#include <ESPAsyncWebServer.h>
 #include <DNSServer.h>
-#include <uri/UriBraces.h>
-#include "Config.h"
-#include "SensorManager.h"
-#include "DeviceController.h"
+#include "HardwareRuntime.h"
 #include "AuthManager.h"
 
 class WebServerManager {
-private:
-    WebServer server;
-    DNSServer dnsServer;
-    SensorManager* sensors;
-    DeviceController* devices;
-    AuthManager* auth;
-    
-    bool checkAuthentication();
-    void handleRoot();
-    void handleLogin();
-    void handleConnect();
-    void handleScanNetworks();
-    void handleDashboard();
-    void handleToggle();
-    void handleBrightness();
-#if SIMULATION_MODE
-    void handleSimulation();
-#endif
-    void handleNotFound();
-    void handleFavicon();
-    
 public:
-    WebServerManager(SensorManager* sensorManager, DeviceController* deviceController, AuthManager* authManager);
+    WebServerManager(HardwareRuntime* runtime, AuthManager* authManager);
     void begin();
     void handleClient();
-    
-    static void initTime();
+private:
+    struct WiFiRequest { char ssid[33]; char password[65]; };
+    AsyncWebServer server{80};
+    AsyncEventSource events{"/events"};
+    DNSServer dnsServer;
+    HardwareRuntime* hardware;
+    AuthManager* auth;
+    QueueHandle_t wifiRequests = nullptr;
+    std::atomic<bool> connecting{false};
+    uint32_t connectStarted = 0;
+    uint32_t lastRevision = UINT32_MAX;
+    uint32_t lastHeartbeat = 0;
+    uint32_t lastNetworkCheck = 0;
+    String lastNetwork;
+    bool checkAuthentication(AsyncWebServerRequest* request);
+    void handleConnect(AsyncWebServerRequest* request);
+    void handleControl(AsyncWebServerRequest* request);
+    void handleSimulation(AsyncWebServerRequest* request);
+    void handleWiFi();
+    String stateJSON(const GrowboxState& state);
+    String networkJSON();
 };
-
-#endif // WEBSERVERMANAGER_H

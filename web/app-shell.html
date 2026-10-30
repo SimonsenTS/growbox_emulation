@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#174f36">
+  <meta name="description" content="Live GrowBox monitoring and device control">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <link rel="stylesheet" href="/app.css">
+  <script src="/app.js" defer></script>
+  <title>GrowBox</title>
+</head>
+<body>
+  <main>
+    <header><div><p class="eyebrow">YOUR GROWING SPACE</p><h1>GrowBox</h1></div><button id="install" hidden>Install app</button></header>
+    <p id="connection" role="status" aria-live="polite">Connecting to GrowBox&hellip;</p>
+    <p id="network" class="muted"></p>
+    <p id="message" role="alert"></p>
+    <section class="readings" aria-label="Sensor readings">
+      <article><h2>Temperature</h2><p class="reading" id="temperature">&mdash;</p><meter id="temperature-meter" min="-40" max="80" value="0" aria-label="Temperature"></meter></article>
+      <article><h2>Humidity</h2><p class="reading" id="humidity">&mdash;</p><meter id="humidity-meter" min="0" max="100" value="0" aria-label="Humidity"></meter></article>
+      <article><h2>Soil moisture</h2><p class="reading" id="soil">&mdash;</p><meter id="soil-meter" min="0" max="100" value="0" aria-label="Soil moisture"></meter></article>
+      <article><h2>Water level</h2><p class="reading" id="water">&mdash;</p><meter id="water-meter" min="0" max="100" value="0" aria-label="Water level"></meter></article>
+      <article><h2>Ambient light</h2><p class="reading" id="lux">&mdash;</p><p class="muted">Optional LTR-303 sensor</p></article>
+    </section>
+    <section aria-labelledby="controls-title">
+      <h2 id="controls-title">Devices</h2>
+      <div class="controls">
+        <button data-device="pump" disabled>Pump &middot; <span id="pump">OFF</span></button>
+        <button data-device="growLed" disabled>Grow LED &middot; <span id="growLed">OFF</span></button>
+        <button data-device="boost" disabled>LED boost &middot; <span id="boost">OFF</span></button>
+        <button data-device="rgb" disabled>Status LEDs &middot; <span id="rgb">OFF</span></button>
+      </div>
+      <label for="brightness">Grow LED brightness <output id="brightness-value">0%</output></label>
+      <input id="brightness" type="range" min="0" max="100" value="0" disabled>
+      <p class="muted">Automatic watering starts below 20% soil moisture and stops at 60%. Water at 10% or lower, missing readings, or stale readings protect the pump. Manual OFF lasts until the next automatic sample.</p>
+    </section>
+    <section class="leds" aria-label="Status LED colors">
+      <p><span id="soilColor" class="dot"></span>Soil status</p>
+      <p><span id="waterColor" class="dot"></span>Water status <small>(critical red stays on)</small></p>
+    </section>
+    <section id="simulation" hidden>
+      <h2>Simulation</h2>
+      <form id="simulation-form">
+        <label>Temperature (&deg;C)<input name="temperature" type="number" min="-40" max="80" step="0.1" value="25" required></label>
+        <label>Humidity (%)<input name="humidity" type="number" min="0" max="100" value="50" required></label>
+        <label>Soil (%)<input name="soil" type="number" min="0" max="100" value="30" required></label>
+        <label>Water (%)<input name="water" type="number" min="0" max="100" value="70" required></label>
+        <label>Lux<input name="lux" type="number" min="0" max="100000" value="500" required></label>
+        <button id="simulation-submit" disabled>Apply readings</button>
+      </form>
+    </section>
+    <footer><p id="pwa-note"></p><a href="/login">WiFi setup & login</a>
+      <form action="/logout" method="post"><button>Sign out</button></form></footer>
+    <noscript>Enable JavaScript for live monitoring and device controls.</noscript>
+  </main>
+</body>
+</html>

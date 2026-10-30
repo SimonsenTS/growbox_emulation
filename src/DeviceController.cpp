@@ -38,6 +38,7 @@ void DeviceController::begin() {
 }
 
 void DeviceController::setPumpState(bool state) {
+    if (pumpState == state) return;
     pumpState = state;
     digitalWrite(PUMP_RELAY, pumpState);
     Serial.printf("Pump relay set to: %s (GPIO %d = %d)\n", pumpState ? "ON" : "OFF", PUMP_RELAY, pumpState);
@@ -75,6 +76,8 @@ void DeviceController::toggleGrowLed() {
 }
 
 void DeviceController::updateGrowLEDBrightness(int brightness) {
+    brightness = constrain(brightness, 0, 100);
+    if (brightness == lastBrightness) return;
     lastBrightness = brightness;
     int pwmValue = map(brightness, 0, 100, 0, 255);
     analogWrite(GROWLED_PWM, pwmValue);
@@ -117,7 +120,9 @@ void DeviceController::setSoilRGBColor(int red, int green, int blue) {
     blue = constrain(blue, 0, 255);
 
     // Store color as 32-bit value (0x00RRGGBB)
-    soilColor = ((uint32_t)red << 16) | ((uint32_t)green << 8) | blue;
+    uint32_t nextColor = ((uint32_t)red << 16) | ((uint32_t)green << 8) | blue;
+    if (soilColor == nextColor) return;
+    soilColor = nextColor;
 
     // Debug output
     Serial.printf("Setting Soil Moisture LED (WS2812B) - R: %d, G: %d, B: %d\n", red, green, blue);
@@ -136,7 +141,7 @@ void DeviceController::updateSoilMoistureColor(int soilPercentage) {
     if (soilPercentage < 20) {
         // Dry: Red
         setSoilRGBColor(255, 0, 0);
-    } else if (soilPercentage <= 60) {
+    } else if (soilPercentage < 60) {
         // Moist: Orange
         setSoilRGBColor(255, 165, 0);
     } else {
@@ -152,7 +157,9 @@ void DeviceController::setWaterRGBColor(int red, int green, int blue) {
     blue = constrain(blue, 0, 255);
 
     // Store color as 32-bit value (0x00RRGGBB)
-    waterColor = ((uint32_t)red << 16) | ((uint32_t)green << 8) | blue;
+    uint32_t nextColor = ((uint32_t)red << 16) | ((uint32_t)green << 8) | blue;
+    if (waterColor == nextColor) return;
+    waterColor = nextColor;
 
     // Debug output
     Serial.printf("Setting Water Level LED (WS2812B) - R: %d, G: %d, B: %d\n", red, green, blue);
@@ -172,7 +179,7 @@ void DeviceController::setWaterRGBColor(int red, int green, int blue) {
 }
 
 void DeviceController::updateWaterLevelColor(int waterPercentage) {
-    if (waterPercentage < 10) {
+    if (waterPercentage <= 10) {
         // Low: Red
         setWaterRGBColor(255, 0, 0);
     } else if (waterPercentage <= 50) {
@@ -192,7 +199,8 @@ void DeviceController::setRGBLedsEnabled(bool enabled) {
         // Turn off both LEDs
         soilLED.clear();
         soilLED.show();
-        waterLED.clear();
+        // Critical water indication remains active even with RGB disabled.
+        waterLED.setPixelColor(0, waterColor == 0xFF0000 ? waterColor : 0);
         waterLED.show();
     } else {
         // Re-apply stored colors

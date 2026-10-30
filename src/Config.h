@@ -58,11 +58,19 @@
 // Button debounce
 #define DEBOUNCE_DELAY 200
 
-// Automatic sensor reading interval (in milliseconds)
-// Set to 0 to disable periodic readings (only read on dashboard access)
-#define AUTO_SENSOR_INTERVAL 1000  // 1 second
+// Sensors run independently of HTTP. Must stay > 0 for pump protection.
+#define AUTO_SENSOR_INTERVAL 1000
+#define SENSOR_STALE_MS 4000
+#define CONTROL_INTERVAL_MS 20
+
+// Optional PCB v2 LTR-303 on the shared I2C bus (0x29).
+#ifndef ENABLE_LUX_SENSOR
+#define ENABLE_LUX_SENSOR 0
+#endif
 
 // Simulation mode - set to true to enable manual sensor input
-#define SIMULATION_MODE false
+#ifndef SIMULATION_MODE
+#define SIMULATION_MODE 0
+#endif
 
 #endif // CONFIG_H

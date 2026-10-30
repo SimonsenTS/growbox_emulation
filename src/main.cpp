@@ -1,113 +1,25 @@
 #include <Arduino.h>
-#include <WiFi.h>
-#include "Config.h"
-#include "SensorManager.h"
-#include "DeviceController.h"
+#include "HardwareRuntime.h"
 #include "AuthManager.h"
 #include "WebServerManager.h"
 
-// Create instances of our managers
-SensorManager sensors;
-DeviceController devices;
-AuthManager auth("admin", "password123");  // Default credentials
-WebServerManager webServer(&sensors, &devices, &auth);
-
-// Automatic sensor reading timing
-unsigned long lastSensorReadTime = 0;
+HardwareRuntime hardware;
+AuthManager auth("admin", "password123");
+WebServerManager webServer(&hardware, &auth);
 
 void setup() {
     Serial.begin(115200);
-    delay(2000);  // 2s - gives time for serial monitor to connect
-    
-    Serial.println("\n=================================");
-    Serial.println("GrowBox System Starting...");
-    Serial.println("=================================\n");
-    
-    // Initialize all components
-    sensors.begin();
-    devices.begin();
-    
-    // Initialize RGB LED colors based on initial sensor readings
-    // Read water first to avoid interference from soil sensor
-    int initialWater = sensors.getWaterPercentage();
-    int initialSoil = sensors.getSoilPercentage();
-    devices.updateSoilMoistureColor(initialSoil);
-    devices.updateWaterLevelColor(initialWater);
-    Serial.printf("Initial RGB colors set - Soil: %d%%, Water: %d%%\n", initialSoil, initialWater);
-    
-    // Initialize Access Point for initial setup
+    if (!hardware.begin()) {
+        Serial.println("FATAL: RTOS allocation failed; pump remains OFF. Reset required.");
+        for (;;) delay(1000);
+    }
     AuthManager::initAccessPoint();
-    
-    // Scan for available networks
+    auth.begin();
     auth.scanNetworks();
-    
-    // Start web server
     webServer.begin();
-    
-    Serial.println("\n=================================");
-    Serial.println("System Ready!");
-    Serial.println("1. Connect to WiFi: GrowBox_Setup (Open Network)");
-    Serial.println("2. Open browser: http://192.168.4.1");
-    Serial.println("3. Configure WiFi and set password");
-    Serial.println("=================================\n");
+    Serial.println("GrowBox ready: connect to GrowBox_Setup and open http://192.168.4.1");
 }
-
 void loop() {
-    // Check and handle button press
-    if (devices.checkButton()) {
-        devices.togglePump();
-        Serial.print("Pump State: ");
-        Serial.println(devices.getPumpState() ? "ON" : "OFF");
-    }
-
-#if AUTO_SENSOR_INTERVAL > 0
-    // Periodic automatic sensor reading
-    unsigned long currentTime = millis();
-    if (currentTime - lastSensorReadTime >= AUTO_SENSOR_INTERVAL) {
-        lastSensorReadTime = currentTime;
-        
-        // Read all sensors (measure SHT40 once per cycle)
-        sensors.measureSHT40();
-        float temperature = sensors.readTemperature();
-        float humidity = sensors.readHumidity();
-        // Read water first to avoid interference from soil sensor
-        int waterPercentage = sensors.getWaterPercentage();
-        int soilPercentage = sensors.getSoilPercentage();
-        
-        // Update RGB LED colors
-        devices.updateSoilMoistureColor(soilPercentage);
-        devices.updateWaterLevelColor(waterPercentage);
-        
-        // Log readings
-        Serial.println("=== Sensor Reading ===");
-        if (temperature <= -998.0f)
-            Serial.println("Temperature: N/A (SHT40 not found)");
-        else
-            Serial.printf("Temperature: %.1f C, Humidity: %.1f%%\n", temperature, humidity);
-        Serial.printf("Soil: %d%%, Water: %d%%\n", soilPercentage, waterPercentage);
-        Serial.printf("Pump: %s\n", devices.getPumpState() ? "ON" : "OFF");
-        
-        // Pump control logic (priority order)
-        
-        // 1. SAFETY: Auto-stop pump if water runs out (highest priority!)
-        if (waterPercentage <= 10 && devices.getPumpState()) {
-            devices.setPumpState(false);
-            Serial.println(">>> AUTO-STOP: Water level too low (<= 10%) - PUMP PROTECTION");
-        }
-        // 2. Auto-stop pump as soon as soil turns GREEN (>= 60%)
-        else if (soilPercentage >= 60 && devices.getPumpState()) {
-            devices.setPumpState(false);
-            Serial.println(">>> AUTO-STOP: Soil moisture >= 60% (WET - GREEN LED)");
-        }
-        // 3. Auto-start pump if soil is too dry (RED, < 20%) and water is available
-        else if (soilPercentage < 20 && waterPercentage > 10 && !devices.getPumpState()) {
-            devices.setPumpState(true);
-            Serial.println(">>> AUTO-START: Soil moisture < 20% (DRY - RED LED)");
-        }
-    }
-#endif
-
-    // Handle client requests
-    webServer.handleClient();
+    webServer.handleClient(); // DNS, WiFi progress and change-only SSE publication
     delay(2);
 }

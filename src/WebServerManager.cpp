@@ -1,345 +1,268 @@
 #include "WebServerManager.h"
-#include "WebPage.h"
-#include <time.h>
+#include "WebAssets.h"
+#include <math.h>
 
-WebServerManager::WebServerManager(SensorManager* sensorManager, DeviceController* deviceController, AuthManager* authManager)
-    : server(80), sensors(sensorManager), devices(deviceController), auth(authManager) {
+namespace {
+void json(AsyncWebServerRequest* request, int code, const String& body) {
+    auto* response = request->beginResponse(code, "application/json", body);
+    response->addHeader("Cache-Control", "no-store");
+    request->send(response);
+}
+String quoteJSON(const String& value) {
+    String escaped = "\"";
+    for (size_t i = 0; i < value.length(); ++i) {
+        const unsigned char c = value[i];
+        if (c == '"' || c == '\\') { escaped += '\\'; escaped += char(c); }
+        else if (c < 0x20) { char hex[7]; snprintf(hex, sizeof(hex), "\\u%04x", c); escaped += hex; }
+        else escaped += char(c);
+    }
+    return escaped + "\"";
+}
+String number(float value, bool valid, int decimals = 1) {
+    return valid && isfinite(value) ? String(value, decimals) : "null";
+}
+bool parseInteger(const String& value, int maximum, int& result) {
+    if (value.isEmpty() || value.length() > 3) return false;
+    for (size_t i = 0; i < value.length(); ++i) if (!isDigit(value[i])) return false;
+    result = value.toInt();
+    return result <= maximum;
+}
+void asset(AsyncWebServerRequest* request, const char* type, const uint8_t* data, size_t size) {
+    auto* response = request->beginResponse(200, type, data, size);
+    response->addHeader("Content-Encoding", "gzip");
+    response->addHeader("Cache-Control", "no-cache");
+    request->send(response);
+}
 }
 
-bool WebServerManager::checkAuthentication() {
-    if (!auth->isUserAuthenticated()) {
-        server.sendHeader("Location", "/");
-        server.send(303);
-        return false;
-    }
-    return true;
+WebServerManager::WebServerManager(HardwareRuntime* runtime, AuthManager* authManager)
+    : hardware(runtime), auth(authManager) {}
+
+bool WebServerManager::checkAuthentication(AsyncWebServerRequest* request) {
+    if (auth->isUserAuthenticated(request->header("Cookie"))) return true;
+    json(request, 401, "{\"error\":\"Login required\"}");
+    return false;
 }
 
 void WebServerManager::begin() {
-    // Set up server routes
-    server.on("/", [this]() { handleRoot(); });
-    server.on("/connect", HTTP_POST, [this]() { handleConnect(); });
-    server.on("/scan-networks", HTTP_GET, [this]() { handleScanNetworks(); });
-    server.on("/dashboard", HTTP_GET, [this]() { handleDashboard(); });
-    server.on(UriBraces("/toggle/{}"), [this]() { handleToggle(); });
-    server.on(UriBraces("/brightness/{}"), [this]() { handleBrightness(); });
-#if SIMULATION_MODE
-    server.on("/simulation", HTTP_POST, [this]() { handleSimulation(); });
-#endif
-    server.on("/favicon.ico", [this]() { handleFavicon(); });
-    
-    // Captive portal detection routes (for various devices/OS)
-    // Android
-    server.on("/generate_204", [this]() { server.sendHeader("Location", "http://192.168.4.1/", true); server.send(302, "text/plain", ""); });
-    server.on("/gen_204", [this]() { server.sendHeader("Location", "http://192.168.4.1/", true); server.send(302, "text/plain", ""); });
-    server.on("/204", [this]() { server.send(204, "text/plain", ""); });
-    // Apple/iOS
-    server.on("/hotspot-detect.html", [this]() { server.sendHeader("Location", "http://192.168.4.1/", true); server.send(302, "text/plain", ""); });
-    server.on("/library/test/success.html", [this]() { server.sendHeader("Location", "http://192.168.4.1/", true); server.send(302, "text/plain", ""); });
-    // Windows
-    server.on("/ncsi.txt", [this]() { server.sendHeader("Location", "http://192.168.4.1/", true); server.send(302, "text/plain", ""); });
-    server.on("/connecttest.txt", [this]() { server.sendHeader("Location", "http://192.168.4.1/", true); server.send(302, "text/plain", ""); });
-    server.on("/redirect", [this]() { server.sendHeader("Location", "http://192.168.4.1/", true); server.send(302, "text/plain", ""); });
-    // Other
-    server.on("/canonical.html", [this]() { server.sendHeader("Location", "http://192.168.4.1/", true); server.send(302, "text/plain", ""); });
-    server.on("/success.txt", [this]() { server.sendHeader("Location", "http://192.168.4.1/", true); server.send(302, "text/plain", ""); });
-    server.on("/ipv6check", [this]() { server.send(200, "text/plain", ""); });
-    
-    server.onNotFound([this]() { handleNotFound(); });
-    
-    server.begin();
-    
-    // Start DNS server for captive portal (redirect all DNS requests to ESP32)
-    dnsServer.start(53, "*", WiFi.softAPIP());
-    
-    Serial.println("HTTP server started");
-    Serial.println("DNS server started (Captive Portal)");
-    Serial.println("Access Point: GrowBox_Setup (Open Network)");
-    Serial.print("URL: http://");
-    Serial.println(WiFi.softAPIP());
-}
-
-void WebServerManager::handleRoot() {
-    // Show login page if not authenticated
-    if (!auth->isUserAuthenticated()) {
-        String loginPage = auth->getLoginPageHTML();
-        server.send(200, "text/html", loginPage);
-        return;
-    }
-    
-    // If authenticated, redirect to dashboard
-    server.sendHeader("Location", "/dashboard");
-    server.send(303);
-}
-
-void WebServerManager::handleConnect() {
-    String network = server.arg("network");
-    String wifi_password = server.arg("wifi_password");
-    String username = server.arg("username");
-    String password = server.arg("password");
-
-    // First validate the credentials
-    if (!auth->validateCredentials(username.c_str(), password.c_str())) {
-        server.send(401, "text/html", 
-            "<html><body style='font-family: Arial; text-align: center; margin-top: 50px;'>"
-            "<h1>Invalid Credentials</h1>"
-            "<p>The provided username or password is incorrect</p>"
-            "<p><a href='/'>Back to Login</a></p>"
-            "</body></html>");
-        return;
-    }
-
-    if (network.length() > 0 && wifi_password.length() > 0) {
-        bool connected = AuthManager::connectToWiFi(network, wifi_password);
-        
-        if (connected) {
-            auth->setAuthenticated(true);
-            
-            // Restart server to listen on new IP
-            server.close();
-            delay(1000);
-            server.begin();
-            
-            // Initialize time after WiFi connection
-            initTime();
-            
-            server.send(200, "text/html", 
-                "<html><body style='font-family: Arial; text-align: center; margin-top: 50px;'>"
-                "<h1>Connected Successfully!</h1>"
-                "<p>Network: " + network + "</p>"
-                "<p>IP Address: " + WiFi.localIP().toString() + "</p>"
-                "<p><a href='/dashboard' style='display: inline-block; margin-top: 20px; padding: 15px 30px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px;'>Go to GrowBox Dashboard</a></p>"
-                "</body></html>");
-        } else {
-            server.send(400, "text/html", 
-                "<html><body style='font-family: Arial; text-align: center; margin-top: 50px;'>"
-                "<h1>Connection Failed</h1>"
-                "<p>Could not connect to " + network + "</p>"
-                "<p><a href='/'>Back to Setup</a></p>"
-                "</body></html>");
+    wifiRequests = xQueueCreate(1, sizeof(WiFiRequest));
+    server.on("/", HTTP_GET, [this](AsyncWebServerRequest* request) {
+        if (auth->isUserAuthenticated(request->header("Cookie"))) request->redirect("/dashboard");
+        else {
+            auto* response = request->beginResponse(200, "text/html; charset=utf-8", auth->getLoginPageHTML());
+            response->addHeader("Cache-Control", "no-store");
+            request->send(response);
         }
-    } else {
-        server.send(400, "text/html", 
-            "<html><body style='font-family: Arial; text-align: center; margin-top: 50px;'>"
-            "<h1>Invalid Parameters</h1>"
-            "<p>Network name and password are required</p>"
-            "<p><a href='/'>Back to Setup</a></p>"
-            "</body></html>");
-    }
-}
-
-void WebServerManager::handleScanNetworks() {
-    auth->scanNetworks();
-    server.send(200, "text/plain", "Networks scanned");
-}
-
-void WebServerManager::handleDashboard() {
-    if (!checkAuthentication()) {
-        return;
-    }
-    
-    String response = WebPage::getHTML();
-    
-    float temperature = sensors->readTemperature();
-    float humidity = sensors->readHumidity();
-    // Read water first to avoid interference from soil sensor
-    int waterPercentage = sensors->getWaterPercentage();
-    int soilPercentage = sensors->getSoilPercentage();
-
-    // Auto-stop pump if water runs out (safety first!)
-    if (waterPercentage <= 10 && devices->getPumpState()) {
-        devices->setPumpState(false);
-    }
-    
-    // Auto-start pump if soil is too dry (< 20%) and there's water available
-    if (soilPercentage < 20 && waterPercentage > 10) {
-        devices->setPumpState(true);
-    }
-    
-    // Auto-stop pump if soil is too wet (> 80%)
-    if (soilPercentage > 80) {
-        devices->setPumpState(false);
-    }
-
-    // Update RGB colors based on sensor values (always do this)
-    devices->updateSoilMoistureColor(soilPercentage);
-    devices->updateWaterLevelColor(waterPercentage);
-    
-    Serial.println("=== Dashboard RGB Values ===");
-    Serial.printf("Soil RGB: R=%d, G=%d, B=%d\n", 
-                  devices->getSoilRedValue(), devices->getSoilGreenValue(), devices->getSoilBlueValue());
-    Serial.printf("Water RGB: R=%d, G=%d, B=%d\n", 
-                  devices->getWaterRedValue(), devices->getWaterGreenValue(), devices->getWaterBlueValue());
-
-    // Replace Soil Moisture RGB values FIRST (before replacing SOIL with percentage)
-    String soilR = String(devices->getSoilRedValue());
-    String soilG = String(devices->getSoilGreenValue());
-    String soilB = String(devices->getSoilBlueValue());
-    response.replace("SOIL_R_VAL", soilR);
-    response.replace("SOIL_G_VAL", soilG);
-    response.replace("SOIL_B_VAL", soilB);
-    Serial.printf("Replacing SOIL RGB: %s, %s, %s\n", soilR.c_str(), soilG.c_str(), soilB.c_str());
-    
-    // Replace Water Level RGB values FIRST (before replacing WATER with percentage)
-    String waterR = String(devices->getWaterRedValue());
-    String waterG = String(devices->getWaterGreenValue());
-    String waterB = String(devices->getWaterBlueValue());
-    response.replace("WATER_R_VAL", waterR);
-    response.replace("WATER_G_VAL", waterG);
-    response.replace("WATER_B_VAL", waterB);
-    Serial.printf("Replacing WATER RGB: %s, %s, %s\n", waterR.c_str(), waterG.c_str(), waterB.c_str());
-
-    if (isnan(temperature) || isnan(humidity)) {
-        response.replace("TEMP", "0");
-        response.replace("HUM", "0");
-    } else {
-        int tempPercentage = constrain(temperature, 0, 100);
-        int humPercentage = constrain(humidity, 0, 100);
-        response.replace("TEMP", String(tempPercentage));
-        response.replace("HUM", String(humPercentage));
-    }
-    
-    // Replace sensor percentages (do this AFTER RGB replacements)
-    response.replace("SOIL", String(soilPercentage));
-    response.replace("WATER", String(waterPercentage));
-
-    // Update device states in the HTML response
-    response.replace("PUMP_TEXT", devices->getPumpState() ? "ON" : "OFF");
-    response.replace("PUMP_CLASS", devices->getPumpState() ? "btn" : "btn-off");
-    response.replace("GrowLED", devices->getGrowLedState() ? "ON" : "OFF");
-    response.replace("LED_CLASS", devices->getGrowLedState() ? "btn" : "btn-off");
-    response.replace("RGB_LED", devices->getRGBLedsEnabled() ? "ON" : "OFF");
-    response.replace("RGB_CLASS", devices->getRGBLedsEnabled() ? "btn" : "btn-off");
-    response.replace("BOOST_TEXT", devices->getGrowLedBoostState() ? "ON" : "OFF");
-    response.replace("BOOST_CLASS", devices->getGrowLedBoostState() ? "btn" : "btn-off");
-
-    // Replace BRIGHTNESS with the actual brightness value
-    response.replace("BRIGHTNESS", String(devices->getBrightness()));
-
-    server.send(200, "text/html", response);
-}
-
-void WebServerManager::handleToggle() {
-    if (!checkAuthentication()) {
-        return;
-    }
-    
-    String button = server.pathArg(0);
-    Serial.print("Toggle Button: ");
-    Serial.println(button);
-
-    int buttonNumber = button.toInt();
-    switch (buttonNumber) {
-        case 1:
-            devices->togglePump();
-            break;
-        case 2:
-            devices->toggleGrowLed();
-            break;
-        case 3:
-            devices->toggleRGBLeds();
-            break;
-        case 4:
-            devices->toggleGrowLedBoost();
-            break;
-    }
-
-    server.sendHeader("Location", "/dashboard");
-    server.send(303);
-}
-
-void WebServerManager::handleBrightness() {
-    if (!checkAuthentication()) {
-        return;
-    }
-    
-    String brightnessValue = server.pathArg(0);
-    int brightness = brightnessValue.toInt();
-    brightness = constrain(brightness, 0, 100);
-    // If brightness > 0 and LED is off, turn it on first
-    if (brightness > 0 && !devices->getGrowLedState()) {
-        devices->setGrowLedState(true);
-    }
-    devices->updateGrowLEDBrightness(brightness);
-    server.send(204);
-}
-
-void WebServerManager::handleNotFound() {
-    // Serve login page for any unknown URL - triggers captive portal popup on devices
-    if (auth->isUserAuthenticated()) {
-        server.sendHeader("Location", "/dashboard", true);
-        server.send(302, "text/plain", "");
-    } else {
-        String loginPage = auth->getLoginPageHTML();
-        server.send(200, "text/html", loginPage);
-    }
-}
-
+    });
+    server.on("/login", HTTP_GET, [this](AsyncWebServerRequest* request) {
+        auto* response = request->beginResponse(200, "text/html; charset=utf-8", auth->getLoginPageHTML());
+        response->addHeader("Cache-Control", "no-store");
+        request->send(response);
+    });
+    server.on("/logout", HTTP_POST, [this](AsyncWebServerRequest* request) {
+        auto* response = request->beginResponse(303);
+        response->addHeader("Location", "/login");
+        response->addHeader("Cache-Control", "no-store");
+        response->addHeader("Set-Cookie", "GrowBoxSession=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0");
+        events.close();
+        request->send(response);
+    });
+    server.on("/connect", HTTP_POST, [this](AsyncWebServerRequest* request) { handleConnect(request); });
+    server.on("/scan-networks", HTTP_POST, [this](AsyncWebServerRequest* request) {
+        // WiFi's asynchronous scan never holds the network task waiting for results.
+        auth->scanNetworks();
+        json(request, 202, "{\"scanning\":true}");
+    });
+    server.on("/api/networks", HTTP_GET, [this](AsyncWebServerRequest* request) {
+        json(request, 200, String("{\"scanning\":") + (auth->isScanning() ? "true" : "false") +
+            ",\"options\":" + quoteJSON(auth->getNetworksAsOptions()) + "}");
+    });
+    server.on("/dashboard", HTTP_GET, [this](AsyncWebServerRequest* request) {
+        if (!auth->isUserAuthenticated(request->header("Cookie"))) { request->redirect("/"); return; }
+        asset(request, "text/html; charset=utf-8", WebAssets::app_shell_html, sizeof(WebAssets::app_shell_html));
+    });
+    server.on("/api/state", HTTP_GET, [this](AsyncWebServerRequest* request) {
+        if (checkAuthentication(request)) json(request, 200, stateJSON(hardware->snapshot()));
+    });
+    server.on("/api/control", HTTP_POST, [this](AsyncWebServerRequest* request) { handleControl(request); });
 #if SIMULATION_MODE
-void WebServerManager::handleSimulation() {
-    if (!checkAuthentication()) {
+    server.on("/simulation", HTTP_POST, [this](AsyncWebServerRequest* request) { handleSimulation(request); });
+#endif
+    server.on("/api/config", HTTP_GET, [this](AsyncWebServerRequest* request) {
+        if (checkAuthentication(request)) json(request, 200, SIMULATION_MODE ? "{\"simulation\":true}" : "{\"simulation\":false}");
+    });
+    server.on("/app-shell.html", HTTP_GET, [](AsyncWebServerRequest* r) {
+        asset(r, "text/html; charset=utf-8", WebAssets::app_shell_html, sizeof(WebAssets::app_shell_html));
+    });
+    server.on("/app.js", HTTP_GET, [](AsyncWebServerRequest* r) {
+        asset(r, "application/javascript", WebAssets::app_js, sizeof(WebAssets::app_js));
+    });
+    server.on("/app.css", HTTP_GET, [](AsyncWebServerRequest* r) {
+        asset(r, "text/css", WebAssets::app_css, sizeof(WebAssets::app_css));
+    });
+    server.on("/sw.js", HTTP_GET, [](AsyncWebServerRequest* r) {
+        asset(r, "application/javascript", WebAssets::sw_js, sizeof(WebAssets::sw_js));
+    });
+    server.on("/manifest.webmanifest", HTTP_GET, [](AsyncWebServerRequest* r) {
+        asset(r, "application/manifest+json", WebAssets::manifest_webmanifest, sizeof(WebAssets::manifest_webmanifest));
+    });
+    server.on("/icon-192.png", HTTP_GET, [](AsyncWebServerRequest* r) {
+        asset(r, "image/png", WebAssets::icon_192_png, sizeof(WebAssets::icon_192_png));
+    });
+    server.on("/icon-512.png", HTTP_GET, [](AsyncWebServerRequest* r) {
+        asset(r, "image/png", WebAssets::icon_512_png, sizeof(WebAssets::icon_512_png));
+    });
+    server.on("/favicon.ico", HTTP_GET, [](AsyncWebServerRequest* r) { r->send(204); });
+    events.authorizeConnect([this](AsyncWebServerRequest* request) { return auth->isUserAuthenticated(request->header("Cookie")) && events.count() < 4; });
+    events.onConnect([this](AsyncEventSourceClient* client) {
+        // Always send a complete snapshot on reconnect; old event history is unnecessary.
+        const GrowboxState state = hardware->snapshot();
+        client->send(stateJSON(state).c_str(), "state", state.revision, 1500);
+        client->send(networkJSON().c_str(), "network");
+    });
+    server.addHandler(&events);
+    server.onNotFound([this](AsyncWebServerRequest* request) {
+        if (request->url().startsWith("/api/")) { json(request, 404, "{\"error\":\"Unknown API route\"}"); return; }
+        // Captive portal probes redirect to setup without returning HTML for API calls.
+        request->redirect(auth->isUserAuthenticated(request->header("Cookie")) ? "/dashboard" : "http://192.168.4.1/");
+    });
+    server.begin();
+    dnsServer.start(53, "*", WiFi.softAPIP());
+    Serial.println("Async HTTP + change-only SSE ready");
+}
+
+void WebServerManager::handleConnect(AsyncWebServerRequest* request) {
+    if (!request->hasParam("username", true) || !request->hasParam("password", true) ||
+        !auth->validateCredentials(request->getParam("username", true)->value().c_str(),
+                                   request->getParam("password", true)->value().c_str())) {
+        request->send(401, "text/html", "<h1>Invalid credentials</h1><a href='/'>Back to login</a>");
         return;
     }
-    
-    if (server.hasArg("temperature")) {
-        float temp = server.arg("temperature").toFloat();
-        sensors->setSimulatedTemperature(temp);
-        Serial.print("Simulated Temperature set to: ");
-        Serial.println(temp);
+    String network = request->hasParam("network", true) ? request->getParam("network", true)->value() : "";
+    String password = request->hasParam("wifi_password", true) ? request->getParam("wifi_password", true)->value() : "";
+    if (network.length() > 32 || password.length() > 64) { json(request, 400, "{\"error\":\"Invalid WiFi parameters\"}"); return; }
+    if (network.length()) {
+        WiFiRequest credentials{};
+        network.toCharArray(credentials.ssid, sizeof(credentials.ssid));
+        password.toCharArray(credentials.password, sizeof(credentials.password));
+        if (!wifiRequests || xQueueSend(wifiRequests, &credentials, 0) != pdTRUE) {
+            json(request, 503, "{\"error\":\"WiFi request queue full; retry\"}"); return;
+        }
     }
-    
-    if (server.hasArg("humidity")) {
-        float hum = server.arg("humidity").toFloat();
-        sensors->setSimulatedHumidity(hum);
-        Serial.print("Simulated Humidity set to: ");
-        Serial.println(hum);
-    }
-    
-    if (server.hasArg("soil")) {
-        int soil = server.arg("soil").toInt();
-        sensors->setSimulatedSoilPercentage(soil);
-        Serial.print("Simulated Soil Moisture set to: ");
-        Serial.println(soil);
-        // Update RGB LED color immediately
-        devices->updateSoilMoistureColor(soil);
-    }
-    
-    if (server.hasArg("water")) {
-        int water = server.arg("water").toInt();
-        sensors->setSimulatedWaterPercentage(water);
-        Serial.print("Simulated Water Level set to: ");
-        Serial.println(water);
-        // Update RGB LED color immediately
-        devices->updateWaterLevelColor(water);
-    }
-    
-    server.send(200, "text/plain", "Simulation values updated");
-}
-#endif
-
-void WebServerManager::handleFavicon() {
-    server.send(204);
+    const bool remember = request->hasParam("remember", true) && request->getParam("remember", true)->value() == "1";
+    const String token = auth->createSession(remember);
+    if (token.isEmpty()) { json(request, 503, "{\"error\":\"Could not save sign-in; uncheck Keep me signed in and retry\"}"); return; }
+    auto* response = request->beginResponse(303);
+    response->addHeader("Location", "/dashboard");
+    response->addHeader("Cache-Control", "no-store");
+    String cookie = "GrowBoxSession=" + token + "; Path=/; HttpOnly; SameSite=Lax";
+    if (remember) cookie += "; Max-Age=2592000";
+    if (request->header("X-Forwarded-Proto") == "https") cookie += "; Secure";
+    response->addHeader("Set-Cookie", cookie);
+    request->send(response);
 }
 
+void WebServerManager::handleControl(AsyncWebServerRequest* request) {
+    if (!checkAuthentication(request)) return;
+    if (!request->hasParam("device", true)) { json(request, 400, "{\"error\":\"Device required\"}"); return; }
+    const String device = request->getParam("device", true)->value();
+    HardwareCommand command;
+    if (device == "pump") command.type = CommandType::TogglePump;
+    else if (device == "growLed") command.type = CommandType::ToggleGrowLed;
+    else if (device == "rgb") command.type = CommandType::ToggleRGB;
+    else if (device == "boost") command.type = CommandType::ToggleBoost;
+    else if (device == "brightness") {
+        command.type = CommandType::Brightness;
+        if (!request->hasParam("value", true) || !parseInteger(request->getParam("value", true)->value(), 100, command.value)) {
+            json(request, 400, "{\"error\":\"Brightness must be 0..100\"}"); return;
+        }
+    } else { json(request, 400, "{\"error\":\"Unknown device\"}"); return; }
+    // The actuator task rechecks pump protection when it executes this command.
+    if (!hardware->enqueue(command)) { json(request, 503, "{\"error\":\"Control queue full; retry\"}"); return; }
+    json(request, 202, "{\"queued\":true}");
+}
+
+void WebServerManager::handleSimulation(AsyncWebServerRequest* request) {
+    if (!checkAuthentication(request)) return;
+    const char* names[] = {"temperature", "humidity", "soil", "water", "lux"};
+    float values[5];
+    const float minimum[] = {-40, 0, 0, 0, 0};
+    const float maximum[] = {80, 100, 100, 100, 100000};
+    for (int i = 0; i < 5; ++i) {
+        if (!request->hasParam(names[i], true)) { json(request, 400, "{\"error\":\"All simulation values required\"}"); return; }
+        const String text = request->getParam(names[i], true)->value();
+        char* end = nullptr;
+        values[i] = strtof(text.c_str(), &end);
+        if (end == text.c_str() || *end || !isfinite(values[i]) || values[i] < minimum[i] || values[i] > maximum[i]) {
+            json(request, 400, "{\"error\":\"Invalid simulation value\"}"); return;
+        }
+    }
+    SimulationValues simulation{values[0], values[1], int(values[2]), int(values[3]), values[4]};
+    json(request, hardware->simulate(simulation) ? 202 : 503, "{\"queued\":true}");
+}
+
+String WebServerManager::stateJSON(const GrowboxState& s) {
+    String body;
+    body.reserve(420);
+    body = "{\"revision\":" + String(s.revision) + ",\"fresh\":" + (s.fresh ? "true" : "false");
+    body += ",\"temperature\":" + number(s.sensors.temperature, s.fresh && s.sensors.temperature > -998);
+    body += ",\"humidity\":" + number(s.sensors.humidity, s.fresh && s.sensors.humidity >= 0);
+    body += ",\"soil\":" + number(s.sensors.soil, s.fresh && s.sensors.soil >= 0, 0);
+    body += ",\"water\":" + number(s.sensors.water, s.fresh && s.sensors.water >= 0, 0);
+    body += ",\"lux\":" + number(s.sensors.lux, s.fresh && s.sensors.lux >= 0, 0);
+    body += String(",\"pump\":") + (s.pump ? "true" : "false");
+    body += String(",\"growLed\":") + (s.growLed ? "true" : "false");
+    body += String(",\"boost\":") + (s.boost ? "true" : "false");
+    body += String(",\"rgb\":") + (s.rgb ? "true" : "false");
+    body += ",\"brightness\":" + String(s.brightness);
+    body += ",\"soilColor\":" + String(s.soilColor) + ",\"waterColor\":" + String(s.waterColor) + "}";
+    return body;
+}
+String WebServerManager::networkJSON() {
+    const bool connected = WiFi.status() == WL_CONNECTED;
+    return String("{\"connected\":") + (connected ? "true" : "false") +
+        ",\"connecting\":" + (connecting ? "true" : "false") +
+        ",\"ip\":\"" + (connected ? WiFi.localIP().toString() : WiFi.softAPIP().toString()) + "\"}";
+}
+void WebServerManager::handleWiFi() {
+    auth->pollNetworks();
+    WiFiRequest credentials;
+    if (!connecting && wifiRequests && xQueueReceive(wifiRequests, &credentials, 0) == pdTRUE) {
+        WiFi.begin(credentials.ssid, credentials.password); // asynchronous; AP stays enabled
+        memset(&credentials, 0, sizeof(credentials));
+        connecting = true;
+        connectStarted = millis();
+    }
+    if (connecting && WiFi.status() == WL_CONNECTED) {
+        connecting = false;
+        configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, NTP_SERVER); // never wait for NTP
+    } else if (connecting && uint32_t(millis() - connectStarted) >= 15000) {
+        connecting = false;
+        WiFi.disconnect(false); // retain AP and dashboard after bad WiFi credentials
+    }
+}
 void WebServerManager::handleClient() {
     dnsServer.processNextRequest();
-    server.handleClient();
-}
-
-void WebServerManager::initTime() {
-    // Only attempt NTP sync if we are connected to an external network (STA mode).
-    // In AP-only mode there is no internet access, so configTime() would spam
-    // WiFiUdp errors every ~4 seconds as SNTP retries indefinitely.
-    if (WiFi.status() == WL_CONNECTED) {
-        configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, NTP_SERVER);
-        Serial.println("NTP sync started (STA mode)");
-        struct tm timeinfo;
-        if (getLocalTime(&timeinfo)) {
-            Serial.println(&timeinfo, "Current time: %Y-%m-%d %H:%M:%S");
-        } else {
-            Serial.println("Failed to obtain time from NTP");
+    handleWiFi();
+    const GrowboxState state = hardware->snapshot();
+    if (state.revision != lastRevision) {
+        if (events.count()) {
+            if (events.send(stateJSON(state).c_str(), "state", state.revision) != AsyncEventSource::ENQUEUED)
+                events.close(); // bounded queues: reconnect delivers the latest full state
         }
-    } else {
-        Serial.println("Skipping NTP sync (AP-only mode, no internet)");
+        lastRevision = state.revision;
+    }
+    if (uint32_t(millis() - lastNetworkCheck) >= 1000) {
+        const String network = networkJSON();
+        if (network != lastNetwork) {
+            if (events.count()) events.send(network.c_str(), "network");
+            lastNetwork = network;
+        }
+        lastNetworkCheck = millis();
+    }
+    if (uint32_t(millis() - lastHeartbeat) >= 15000) {
+        // Transport heartbeat contains no sensor values and does not change the DOM.
+        if (events.count()) events.send("{}", "ping");
+        lastHeartbeat = millis();
     }
 }
