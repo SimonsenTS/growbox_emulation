@@ -18,6 +18,14 @@
     <p id="connection" role="status" aria-live="polite">Connecting to GrowBox&hellip;</p>
     <p id="network" class="muted"></p>
     <p id="message" role="alert"></p>
+    <section id="home-network" hidden aria-labelledby="home-network-title">
+      <h2 id="home-network-title">Use GrowBox from your home WiFi</h2>
+      <p>GrowBox has joined <strong id="home-ssid"></strong>. Return this phone or computer to your normal home WiFi in its WiFi settings. You can then use the dashboard and browse the internet together.</p>
+      <p><a id="home-dashboard" target="_blank" rel="noopener">Open the GrowBox dashboard</a></p>
+      <p class="muted">If the name does not open, use <a id="home-ip" target="_blank" rel="noopener"></a> while connected to your home network.</p>
+      <p id="network-save" class="muted"></p>
+      <p class="muted">The first visit at the new address needs a login. Keep me signed in will remember that address.</p>
+    </section>
     <section class="readings" aria-label="Sensor readings">
       <article><h2>Temperature</h2><p class="reading" id="temperature">&mdash;</p><meter id="temperature-meter" min="-40" max="80" value="0" aria-label="Temperature"></meter></article>
       <article><h2>Humidity</h2><p class="reading" id="humidity">&mdash;</p><meter id="humidity-meter" min="0" max="100" value="0" aria-label="Humidity"></meter></article>

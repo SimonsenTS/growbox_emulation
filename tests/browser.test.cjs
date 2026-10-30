@@ -15,11 +15,16 @@ test('GrowBox live dashboard and PWA', {timeout: 90000}, async t => {
   const posts = [];
   const sessions = new Map();
   const loginSource = fs.readFileSync(path.join(__dirname,'../src/AuthManager.cpp'),'utf8');
-  const loginHTML = loginSource.match(/R"delimiter\(([\s\S]*?)\)delimiter"/)[1].replace('%NETWORK_LIST%','');
+  const loginHTML = loginSource.match(/R"delimiter\(([\s\S]*?)\)delimiter"/)[1].replace('%NETWORK_LIST%','').replace('%DASHBOARD_URL%','http://growbox-dashboard.local');
   const authenticated = req => sessions.has((req.headers.cookie || '').match(/(?:^|;\s*)GrowBoxSession=([^;]+)/)?.[1]);
   let controlStatus = 202;
   const emit = () => { for (const res of clients) res.write(`event: state\nid: ${state.revision}\ndata: ${JSON.stringify(state)}\n\n`); };
   const update = changes => { state = {...state,...changes,revision:state.revision+1}; emit(); };
+  let network = {connected:false,connecting:false,saved:false,saveFailed:false,failed:false,mdns:false,ssid:'',ip:'192.168.4.1',apIp:'192.168.4.1',hostname:'growbox-dashboard.local',dashboardUrl:'http://growbox-dashboard.local/dashboard',ipUrl:'http://192.168.4.1/dashboard'};
+  const updateNetwork = changes => {
+    network = {...network,...changes};
+    for (const client of clients) client.write('event: network\ndata: ' + JSON.stringify(network) + '\n\n');
+  };
   const assets = new Map([['/dashboard','app-shell.html'],['/app-shell.html','app-shell.html'],['/app.js','app.js'],['/app.css','app.css'],['/sw.js','sw.js'],['/manifest.webmanifest','manifest.webmanifest'],['/icon-192.png','icon-192.png'],['/icon-512.png','icon-512.png']]);
   const server = http.createServer(async (req,res) => {
     const url = new URL(req.url, 'http://localhost');
@@ -36,9 +41,11 @@ test('GrowBox live dashboard and PWA', {timeout: 90000}, async t => {
       res.writeHead(200, {'Content-Type':'text/event-stream','Cache-Control':'no-store'});
       clients.add(res); res.on('close', () => clients.delete(res));
       res.write(`retry: 150\nevent: state\ndata: ${JSON.stringify(state)}\n\n`);
+      res.write('event: network\ndata: ' + JSON.stringify(network) + '\n\n');
       return;
     }
     if (url.pathname === '/api/config') { res.setHeader('Content-Type','application/json'); res.end('{"simulation":true}'); return; }
+    if (url.pathname === '/api/network') { res.setHeader('Content-Type','application/json'); res.end(JSON.stringify(network)); return; }
     if (req.method === 'POST') {
       let body = ''; for await (const chunk of req) body += chunk;
       const values = Object.fromEntries(new URLSearchParams(body));
@@ -110,6 +117,28 @@ test('GrowBox live dashboard and PWA', {timeout: 90000}, async t => {
     await waitText('temperature','25.5 \u00b0C');
     await page.waitForFunction(() => !document.getElementById('simulation').hidden);
     const initialNavigations = navigations;
+    await t.test('home WiFi handoff provides a stable dashboard name and IP fallback', async () => {
+      assert.equal(await page.locator('#home-network').isHidden(),true);
+      updateNetwork({connecting:true});
+      await page.waitForFunction(()=>document.getElementById('network').textContent.includes('Connecting to home WiFi'));
+      updateNetwork({connected:true,connecting:false,saved:true,mdns:true,ssid:'Home 2.4 GHz',ip:'192.168.1.50',ipUrl:'http://192.168.1.50/dashboard'});
+      await page.waitForSelector('#home-network',{state:'visible'});
+      assert.equal(await page.locator('#home-dashboard').getAttribute('href'),'http://growbox-dashboard.local/dashboard');
+      assert.equal(await page.locator('#home-ip').getAttribute('href'),'http://192.168.1.50/dashboard');
+      assert.match(await page.locator('#home-network').textContent(),/Return this phone or computer to your normal home WiFi/);
+      assert.match(await page.locator('#network-save').textContent(),/reconnect automatically after a restart/);
+      assert.equal(navigations,initialNavigations);
+    });
+    await t.test('WiFi failure keeps setup guidance and missing mDNS uses the home IP', async () => {
+      updateNetwork({connected:false,failed:true,mdns:false});
+      await page.waitForFunction(()=>document.getElementById('network').textContent.includes('connection failed'));
+      assert.equal(await page.locator('#home-network').isHidden(),true);
+      updateNetwork({connected:true,failed:false,mdns:false,saveFailed:true});
+      await page.waitForSelector('#home-network',{state:'visible'});
+      assert.equal(await page.locator('#home-dashboard').getAttribute('href'),'http://192.168.1.50/dashboard');
+      assert.match(await page.locator('#network-save').textContent(),/could not be saved/);
+      updateNetwork({mdns:true,saveFailed:false});
+    });
     await t.test('updates changed DOM values only, without navigation', async () => {
       await page.evaluate(() => {
         window.mutations={temperature:0,humidity:0};
@@ -176,7 +205,7 @@ test('GrowBox live dashboard and PWA', {timeout: 90000}, async t => {
       await page.waitForFunction(()=>document.body.dataset.live==='false');
       assert.equal(await page.locator('[data-device="pump"]').isDisabled(),true);
       assert.equal(await page.locator('#temperature').textContent(),'\u2014');
-      const keys=await page.evaluate(async()=>{const cache=await caches.open('growbox-shell-v1');return (await cache.keys()).map(r=>new URL(r.url).pathname);});
+      const keys=await page.evaluate(async()=>{const name=(await caches.keys()).find(key=>key.startsWith('growbox-shell-'));const cache=await caches.open(name);return (await cache.keys()).map(r=>new URL(r.url).pathname);});
       assert.ok(keys.includes('/app-shell.html')); assert.ok(keys.every(key=>!key.startsWith('/api/') && key!=='/events'));
       const apiWorked=await page.evaluate(async()=>{try{return (await fetch('/api/state')).ok;}catch{return false;}});
       assert.equal(apiWorked,false);
