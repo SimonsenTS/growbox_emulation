@@ -1,4 +1,6 @@
 #include "SensorManager.h"
+#include "ControlPolicy.h"
+#include <math.h>
 #include <Wire.h>
 #include <Adafruit_SHT4x.h>
 
@@ -8,6 +10,11 @@ SensorManager::SensorManager() :
 }
 
 void SensorManager::begin() {
+    pinMode(SOIL_POWER_PIN, OUTPUT);
+    digitalWrite(SOIL_POWER_PIN, LOW);
+#if SIMULATION_MODE
+    return; // simulation never initializes or reads physical sensors
+#endif
     // --- I2C Bus Recovery ---
     // If ENS210 or any device is holding SDA low after power-on/reset,
     // manually clock SCL 9 times to force the device to release SDA.
@@ -55,6 +62,15 @@ void SensorManager::begin() {
                      error_high == 0 ? "OK" : "MISSING");
     }
 
+#if ENABLE_LUX_SENSOR
+    lightFound = light.begin(&Wire);
+    if (lightFound) {
+        light.setGain(LTR3XX_GAIN_1);
+        light.setIntegrationTime(LTR3XX_INTEGTIME_100);
+        light.setMeasurementRate(LTR3XX_MEASRATE_500);
+    }
+    Serial.println(lightFound ? "LTR-303 OK" : "LTR-303 absent: lux unavailable");
+#endif
     // Initialize sensor power pins as outputs and turn them OFF initially
     pinMode(SOIL_POWER_PIN, OUTPUT);
     digitalWrite(SOIL_POWER_PIN, LOW);
@@ -67,9 +83,13 @@ void SensorManager::measureSHT40() {
 #if !SIMULATION_MODE
     if (sht4Found) {
         sensors_event_t humidity, temp;
-        sht4.getEvent(&humidity, &temp);
-        _lastTemp = temp.temperature;
-        _lastHumidity = humidity.relative_humidity;
+        if (sht4.getEvent(&humidity, &temp) && isfinite(temp.temperature) &&
+            isfinite(humidity.relative_humidity)) {
+            _lastTemp = temp.temperature;
+            _lastHumidity = humidity.relative_humidity;
+        } else {
+            _lastTemp = _lastHumidity = -999.0f;
+        }
     }
 #endif
 }
@@ -115,60 +135,22 @@ int SensorManager::readSoilMoisture() {
 #endif
 }
 
-void SensorManager::getLow8SectionValue(unsigned char* low_data) {
-    memset(low_data, 0, 8);
-    
-    // Check if device responds before requesting data
-    Wire.beginTransmission(WATER_LEVEL_I2C_ADDR_LOW);
-    if (Wire.endTransmission() != 0) {
-        return;  // Device not responding, return zeros
+// Wire.requestFrom is bounded by Wire.setTimeOut(50). No busy-wait loops.
+bool SensorManager::getLow8SectionValue(unsigned char* data) {
+    if (Wire.requestFrom(uint8_t(WATER_LEVEL_I2C_ADDR_LOW), uint8_t(8)) != 8) {
+        while (Wire.available()) Wire.read();
+        return false;
     }
-    
-    Wire.requestFrom(WATER_LEVEL_I2C_ADDR_LOW, 8);
-    
-    unsigned long timeout = millis() + 100;
-    while (Wire.available() < 8 && millis() < timeout);
-    
-    int available = Wire.available();
-    
-    if (available >= 8) {
-        for (int i = 0; i < 8; i++) {
-            low_data[i] = Wire.read();
-        }
-    } else if (available > 0) {
-        // Read whatever is available
-        for (int i = 0; i < available && i < 8; i++) {
-            low_data[i] = Wire.read();
-        }
-    }
+    for (int i = 0; i < 8; ++i) data[i] = Wire.read();
+    return true;
 }
-
-void SensorManager::getHigh12SectionValue(unsigned char* high_data) {
-    memset(high_data, 0, 12);
-    
-    // Check if device responds before requesting data
-    Wire.beginTransmission(WATER_LEVEL_I2C_ADDR_HIGH);
-    if (Wire.endTransmission() != 0) {
-        return;  // Device not responding, return zeros
+bool SensorManager::getHigh12SectionValue(unsigned char* data) {
+    if (Wire.requestFrom(uint8_t(WATER_LEVEL_I2C_ADDR_HIGH), uint8_t(12)) != 12) {
+        while (Wire.available()) Wire.read();
+        return false;
     }
-    
-    Wire.requestFrom(WATER_LEVEL_I2C_ADDR_HIGH, 12);
-    
-    unsigned long timeout = millis() + 100;
-    while (Wire.available() < 12 && millis() < timeout);
-    
-    int available = Wire.available();
-    
-    if (available >= 12) {
-        for (int i = 0; i < 12; i++) {
-            high_data[i] = Wire.read();
-        }
-    } else if (available > 0) {
-        // Read whatever is available
-        for (int i = 0; i < available && i < 12; i++) {
-            high_data[i] = Wire.read();
-        }
-    }
+    for (int i = 0; i < 12; ++i) data[i] = Wire.read();
+    return true;
 }
 
 int SensorManager::readWaterLevel() {
@@ -179,17 +161,8 @@ int SensorManager::readWaterLevel() {
     unsigned char high_data[12] = {0};
     uint8_t trig_section = 0;
     
-    // Read data from both I2C addresses
-    getLow8SectionValue(low_data);
-    getHigh12SectionValue(high_data);
-
-    // Debug: print raw capacitive values
-    Serial.print("[Water] Low  (0x77): ");
-    for (int i = 0; i < 8;  i++) Serial.printf("%3d ", low_data[i]);
-    Serial.println();
-    Serial.print("[Water] High (0x78): ");
-    for (int i = 0; i < 12; i++) Serial.printf("%3d ", high_data[i]);
-    Serial.println();
+    // Partial/missing readings are invalid, rather than a plausible percentage.
+    if (!getLow8SectionValue(low_data) || !getHigh12SectionValue(high_data)) return -1;
 
     // Count all triggered sections (not consecutive from bottom - sensor byte order may vary)
     for (int i = 0; i < 8; i++) {
@@ -221,6 +194,7 @@ int SensorManager::getWaterPercentage() {
     return simulatedWaterPercentage;
 #else
     int sections = readWaterLevel();
+    if (sections < 0) return -1;
     // Convert sections (0-20) to percentage (0-100%)
     // Each section represents 5% (20 sections * 5% = 100%)
     int percentage = (sections * 100) / WATER_LEVEL_MAX_SECTIONS;
@@ -244,4 +218,19 @@ void SensorManager::setSimulatedSoilPercentage(int soil) {
 
 void SensorManager::setSimulatedWaterPercentage(int water) {
     simulatedWaterPercentage = constrain(water, 0, 100);
+}
+
+float SensorManager::readLux() {
+#if SIMULATION_MODE
+    return simulatedLux;
+#elif ENABLE_LUX_SENSOR
+    uint16_t ch0, ch1;
+    if (!lightFound || !light.newDataAvailable() || !light.readBothChannels(ch0, ch1)) return -1;
+    return ControlPolicy::lux(ch0, ch1);
+#else
+    return -1; // PCB v1 has no lux sensor
+#endif
+}
+void SensorManager::setSimulatedLux(float lux) {
+    simulatedLux = constrain(lux, 0.0f, 100000.0f);
 }

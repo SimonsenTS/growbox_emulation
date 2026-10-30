@@ -5,6 +5,9 @@
 #include <Adafruit_SHT4x.h>
 #include <Wire.h>
 #include "Config.h"
+#if ENABLE_LUX_SENSOR
+#include <Adafruit_LTR329_LTR303.h>
+#endif
 
 class SensorManager {
 private:
@@ -14,6 +17,11 @@ private:
     float _lastTemp = -999.0f;
     float _lastHumidity = -999.0f;
 
+#if ENABLE_LUX_SENSOR
+    Adafruit_LTR303 light;
+    bool lightFound = false;
+#endif
+    float simulatedLux = 500;
     // Simulation mode values
     float simulatedTemperature;
     float simulatedHumidity;
@@ -21,14 +29,16 @@ private:
     int simulatedWaterPercentage;
     
     // Grove Water Level Sensor I2C helper methods
-    void getHigh12SectionValue(unsigned char* high_data);
-    void getLow8SectionValue(unsigned char* low_data);
+    bool getHigh12SectionValue(unsigned char* high_data);
+    bool getLow8SectionValue(unsigned char* low_data);
     
 public:
     SensorManager();
     void begin();
     void measureSHT40();   // call once per cycle, then use readTemperature/readHumidity
     
+    float readLux();
+    void setSimulatedLux(float lux);
     float readTemperature();
     float readHumidity();
     int readSoilMoisture();
