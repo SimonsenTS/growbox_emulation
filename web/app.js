@@ -8,7 +8,7 @@ let lastHeard = 0;
 let stream;
 let sliderBusy = false;
 const pending = new Set();
-const units = {temperature: ' \u00b0C', humidity: '%', soil: '%', water: '%', lux: ' lx'};
+const units = {temperature: ' \u00b0C', humidity: '%', soil: '%', water: '%', lightPercentage: '%'};
 
 function text(id, value) {
   const node = byId(id);

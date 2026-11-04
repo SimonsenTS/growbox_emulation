@@ -1,5 +1,6 @@
 #pragma once
 #include <stdint.h>
+#include <limits>
 
 namespace ControlPolicy {
 constexpr bool pumpAllowed(int soil, int water, bool fresh) {
@@ -8,6 +9,15 @@ constexpr bool pumpAllowed(int soil, int water, bool fresh) {
 constexpr bool automaticPump(bool running, int soil, int water, bool fresh) {
     if (!pumpAllowed(soil, water, fresh)) return false;
     return running || soil < 20;
+}
+
+// -1 preserves unavailable data; percentages are rounded and clamped.
+constexpr int lightPercentage(float reading, float minimum, float maximum) {
+    if (!(reading >= 0) || reading > std::numeric_limits<float>::max() ||
+        !(minimum >= 0) || !(maximum > minimum) || maximum > std::numeric_limits<float>::max()) return -1;
+    if (reading <= minimum) return 0;
+    if (reading >= maximum) return 100;
+    return int((reading - minimum) / (maximum - minimum) * 100.0f + 0.5f);
 }
 
 // LTR-303 datasheet formula, fixed gain=1 and integration=100 ms.

@@ -13,7 +13,7 @@
 #define SHT40_SDA 18
 #define SHT40_SCL 17
 
-// LTR-303ALS-01 ambient light sensor — to be added in PCB v2 with correct SDA/SCL orientation
+// LTR-303ALS-01 uses the shared I2C bus: SDA=18, SCL=17, address=0x29.
 // #define LTR303_INT_PIN 21
 
 // Sensor pins (ESP32-S3 compatible - ADC1 channels)
@@ -66,9 +66,17 @@
 #define SENSOR_STALE_MS 4000
 #define CONTROL_INTERVAL_MS 20
 
-// Optional PCB v2 LTR-303 on the shared I2C bus (0x29).
+// LTR-303 enabled by default. Override to 0 for boards without the sensor.
 #ifndef ENABLE_LUX_SENSOR
-#define ENABLE_LUX_SENSOR 0
+#define ENABLE_LUX_SENSOR 1
+#endif
+
+// Light calibration: readings at/below MIN are 0%, at/above MAX are 100%.
+#ifndef LIGHT_MIN_LUX
+#define LIGHT_MIN_LUX 0.0f
+#endif
+#ifndef LIGHT_MAX_LUX
+#define LIGHT_MAX_LUX 1450.0f
 #endif
 
 // Simulation mode - set to true to enable manual sensor input

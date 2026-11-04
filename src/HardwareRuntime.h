@@ -15,6 +15,7 @@ struct SensorSample {
 };
 struct GrowboxState {
     SensorSample sensors;
+    int lightPercentage = -1;
     bool fresh = false;
     bool pump = false;
     bool growLed = false;
