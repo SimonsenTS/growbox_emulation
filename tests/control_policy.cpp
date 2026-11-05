@@ -35,3 +35,15 @@ static_assert(lightPercentage(100, 1000, 0) == -1, "reversed endpoints rejected"
 static_assert(lightPercentage(725, 0, 1450) == 50, "office light midpoint");
 static_assert(lightPercentage(1450, 0, 1450) == 100, "office light maximum");
 static_assert(lightPercentage(1800, 0, 1450) == 100, "brighter than office maximum clamps");
+
+#include "CaptivePortalPolicy.h"
+using namespace CaptivePortalPolicy;
+static_assert(isProbe("/generate_204"), "Android probe");
+static_assert(isProbe("/hotspot-detect.html"), "Apple probe");
+static_assert(isProbe("/redirect"), "Windows browser launch");
+static_assert(shouldRedirect(true, true, "/connecttest.txt", true), "probes stay captive even at canonical host");
+static_assert(shouldRedirect(true, true, "/", false), "foreign host root must canonicalize");
+static_assert(!shouldRedirect(false, true, "/redirect", false), "never capture home-network requests");
+static_assert(!shouldRedirect(true, true, "/api/state", false), "API keeps JSON authentication");
+static_assert(!shouldRedirect(true, false, "/connect", false), "do not redirect POST bodies");
+static_assert(!shouldRedirect(true, true, "/dashboard", true), "canonical dashboard has no redirect loop");

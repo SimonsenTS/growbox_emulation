@@ -261,6 +261,12 @@ void AuthManager::initAccessPoint() {
     
     // Configure and start AP with simpler parameters for ESP32-S3
     Serial.println("Starting Access Point: GrowBox_Setup");
+    const IPAddress setupIP(192, 168, 4, 1);
+    const IPAddress setupMask(255, 255, 255, 0);
+    const IPAddress leaseStart(192, 168, 4, 2);
+    // Explicit DHCP DNS offer prevents setup clients using the upstream router DNS.
+    if (!WiFi.softAPConfig(setupIP, setupIP, setupMask, leaseStart, setupIP))
+        Serial.println("WARNING: setup IP/DHCP DNS configuration failed");
     bool apSuccess = WiFi.softAP("GrowBox_Setup");
     
     delay(1000);  // Give more time for AP to stabilize on S3
@@ -290,7 +296,7 @@ void AuthManager::initAccessPoint() {
         IPAddress gateway(192, 168, 4, 1);
         IPAddress subnet(255, 255, 255, 0);
         
-        WiFi.softAPConfig(local_IP, gateway, subnet);
+        WiFi.softAPConfig(local_IP, gateway, subnet, leaseStart, local_IP);
         apSuccess = WiFi.softAP("GrowBox_Setup", "", 1, 0, 4);
         
         delay(1000);
