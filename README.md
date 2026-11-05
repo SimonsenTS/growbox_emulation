@@ -2,6 +2,8 @@
 
 ESP32-S3 firmware for SHT40, powered analog soil moisture, Grove I2C water level, pump relay, grow LED/PWM/boost, two WS2812B LEDs, and an optional LTR-303 lux sensor.
 
+Use **main** for the combined firmware and future updates. It includes FreeRTOS hardware tasks, the live dashboard/PWA, remembered login, saved home WiFi, LTR-303 light percentages and the automatic setup portal.
+
 ## Analysis and changes
 
 Previously, sensor acquisition, automation and HTTP shared the main loop. Each soil measurement waited 50 + 150 + 50 ms. Water reads could spin for 100 ms per I2C address. The dashboard repeated measurements and hardware writes inside its HTTP handler. Controls redirected to another page. Pump rules conflicted: the loop stopped at 60% soil while the dashboard used 80%.
@@ -44,11 +46,19 @@ pio device monitor -b 115200
 
 The default environment is esp32. Its image is .pio/build/esp32/firmware.bin. The build compresses web/ into firmware using scripts/embed_web.py; no filesystem upload is needed. Tested with Espressif32 8.0.0 / Arduino-ESP32 3.3.12.
 
-Connect to the open **GrowBox_Setup** AP and visit **http://192.168.4.1**. Default login: admin / password123. Select your home 2.4 GHz network or use setup WiFi only. Network scans and connection attempts are asynchronous. Failed home WiFi leaves the setup AP available.
+Connect to the open **GrowBox_Setup** AP and open the WiFi sign-in prompt. If none appears, visit **http://192.168.4.1**. Default login: admin / password123. Select your home 2.4 GHz network or use setup WiFi only. Network scans and connection attempts are asynchronous. Failed home WiFi leaves the setup AP available.
+
+## Automatic setup portal
+
+GrowBox advertises 192.168.4.1 as the setup network's DHCP DNS server and answers wildcard DNS with that address, with zero cache lifetime. HTTP connectivity checks used by Windows, Android and Apple devices receive an uncached redirect to the absolute http://192.168.4.1/ address. This applies only to requests received on the setup AP. It does not report internet connectivity as successful. Foreign-host root requests are also redirected before login/dashboard routes, including with a remembered login. API requests keep their JSON responses.
+
+After uploading this update, **forget GrowBox_Setup and reconnect** so the phone/computer renews its DNS settings and network detection. Use the WiFi sign-in notification if the operating system shows one. Automatic browser opening is controlled by the operating system and cannot be guaranteed; cached WiFi profiles, VPN/private DNS or another internet connection can affect detection. HTTPS sites cannot be intercepted by this HTTP portal. If the prompt does not appear, open **http://192.168.4.1/** or a plain HTTP site while connected to GrowBox_Setup.
+
+Once home WiFi is configured, return to your router network and use the named dashboard below. GrowBox_Setup itself provides local setup access, not internet forwarding.
 
 ## Home WiFi and a named dashboard
 
-1. Join GrowBox_Setup on your phone or computer and open http://192.168.4.1.
+1. Join GrowBox_Setup on your phone or computer and open its WiFi sign-in prompt (fallback: http://192.168.4.1).
 2. Select your router's 2.4 GHz WiFi, enter its password, and log in.
 3. Wait for the dashboard to show Home WiFi connected and the home-network links.
 4. Return your phone or computer to your normal router WiFi in the device's WiFi settings.
@@ -104,6 +114,7 @@ With NTP, the server checks token expiry; without a valid device clock, the brow
 - src/SensorManager.*: sensor operations and bounded I2C reads.
 - src/DeviceController.*: outputs and button.
 - src/WebServerManager.*: async API, SSE, queued WiFi configuration.
+- src/CaptivePortalHandler.h and src/CaptivePortalPolicy.h: setup-interface capture and absolute probe redirects.
 - web/: responsive dashboard, manifest, service worker and icons.
 - scripts/embed_web.py: assets embedded in flash.
 - scripts/local_proxy.cjs: optional PC localhost access.
@@ -131,13 +142,13 @@ Compile all environments with:
 pio run -e esp32 -e simulation -e lux
 ```
 
-Compile-time checks exercise the actual pump/lux functions at threshold boundaries, with missing/stale data, darkness and saturation:
+Compile-time checks exercise the actual pump/lux functions at threshold boundaries, with missing/stale data, darkness and saturation, plus captive probe routing and API/home-network exclusions:
 
 ```sh
 xtensa-esp32s3-elf-g++ -std=c++17 -fsyntax-only -Isrc tests/control_policy.cpp
 ```
 
-Browser tests use actual assets with mock firmware HTTP/SSE transport, covering changed-field DOM updates, controls, simulation, reconnects, home-WiFi handoff and IP fallback, errors, mobile overflow and offline/cache isolation. They do not emulate FreeRTOS, physical sensors, radio reconnection, NVS retention or mDNS resolution:
+Browser tests use actual assets with mock firmware HTTP/SSE transport, covering changed-field DOM updates, controls, simulation, reconnects, home-WiFi handoff and IP fallback, captive HTTP redirects with and without remembered login, errors, mobile overflow and offline/cache isolation. They do not emulate FreeRTOS, physical sensors, DHCP/DNS on a real client, OS captive-popup behaviour, radio reconnection, NVS retention or mDNS resolution:
 
 ```sh
 npm --cache .pio/npm-cache install --prefix .pio/browser-tests --no-save --package-lock=false playwright
@@ -146,4 +157,4 @@ node --test tests/browser.test.cjs
 
 Tests use installed Microsoft Edge. Dependencies/screenshots stay under ignored .pio/. Firmware and the optional proxy need no npm packages.
 
-Before putting the firmware into service, verify relay polarity, sensor calibration, wiring, command/button responsiveness during sampling, and pump shutoff when the water sensor is disconnected. Also check home-WiFi provisioning, saved credentials across power cycles, router reconnection, and name resolution from your phone/computer. No physical device was flashed or benchmarked during this change.
+Before putting the firmware into service, verify relay polarity, sensor calibration, wiring, command/button responsiveness during sampling, and pump shutoff when the water sensor is disconnected. Also forget/rejoin GrowBox_Setup on Windows and a phone to check the WiFi sign-in prompt, then check home-WiFi provisioning, saved credentials across power cycles, router reconnection, and name resolution from your phone/computer. No physical device was flashed or benchmarked during this change.

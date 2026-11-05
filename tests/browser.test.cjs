@@ -25,9 +25,25 @@ test('GrowBox live dashboard and PWA', {timeout: 90000}, async t => {
     network = {...network,...changes};
     for (const client of clients) client.write('event: network\ndata: ' + JSON.stringify(network) + '\n\n');
   };
+  let onSetupAP = true;
+  let base;
+  const policySource = fs.readFileSync(path.join(__dirname,'../src/CaptivePortalPolicy.h'),'utf8');
+  const probes = [...policySource.match(/probePaths\[\]\s*=\s*\{([\s\S]*?)\}/)[1].matchAll(/"([^"]+)"/g)].map(m => m[1]);
   const assets = new Map([['/dashboard','app-shell.html'],['/app-shell.html','app-shell.html'],['/app.js','app.js'],['/app.css','app.css'],['/sw.js','sw.js'],['/manifest.webmanifest','manifest.webmanifest'],['/icon-192.png','icon-192.png'],['/icon-512.png','icon-512.png']]);
   const server = http.createServer(async (req,res) => {
     const url = new URL(req.url, 'http://localhost');
+    // Model the AP's HTTP transport; the production decision function is also
+    // compiled in control_policy.cpp. This does not emulate phone OS detection.
+    const readRequest = req.method === 'GET' || req.method === 'HEAD';
+    const host = (req.headers.host || '').toLowerCase().split(':')[0].replace(/\.$/,'');
+    if (onSetupAP && readRequest && url.pathname === '/wpad.dat') {
+      res.writeHead(404,{'Cache-Control':'no-store'}); res.end(); return;
+    }
+    if (onSetupAP && readRequest && !url.pathname.startsWith('/api/') &&
+        (probes.includes(url.pathname) || !['localhost','127.0.0.1','growbox-dashboard','growbox-dashboard.local'].includes(host))) {
+      res.writeHead(302,{Location:base+'/','Cache-Control':'no-store, no-cache, must-revalidate'});
+      res.end('<a href="'+base+'/">Open GrowBox setup</a>'); return;
+    }
     if (url.pathname === '/login' || url.pathname === '/') {
       if (url.pathname === '/' && authenticated(req)) { res.writeHead(303,{Location:'/dashboard'}); res.end(); return; }
       res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'});
@@ -82,7 +98,8 @@ test('GrowBox live dashboard and PWA', {timeout: 90000}, async t => {
   const {createProxy} = require('../scripts/local_proxy.cjs');
   const proxy = createProxy('http://127.0.0.1:' + server.address().port);
   await new Promise(resolve => proxy.listen(0,'127.0.0.1',resolve));
-  const base = 'http://localhost:' + proxy.address().port;
+  base = 'http://localhost:' + proxy.address().port;
+  const direct = 'http://127.0.0.1:' + server.address().port;
   const browser = await playwright.chromium.launch({channel:'msedge',headless:true});
   const context = await browser.newContext();
   const page = await context.newPage();
@@ -94,6 +111,24 @@ test('GrowBox live dashboard and PWA', {timeout: 90000}, async t => {
   page.on('framenavigated', frame => { if (frame === page.mainFrame()) navigations++; });
   const waitText = (id,value) => page.waitForFunction(([id,value]) => document.getElementById(id).textContent === value, [id,value]);
   try {
+    await t.test('setup probes redirect to an absolute GrowBox URL without claiming internet access', async () => {
+      const unsigned = await browser.newContext();
+      try {
+        for (const probe of probes) {
+          const response = await unsigned.request.get(direct+probe,{headers:{Host:'www.msftconnecttest.com'},maxRedirects:0});
+          assert.equal(response.status(),302,probe);
+          assert.equal(response.headers().location,base+'/',probe);
+          assert.match(response.headers()['cache-control'],/no-store/);
+          assert.doesNotMatch(await response.text(),/Microsoft Connect Test|<BODY>Success<\/BODY>/i);
+        }
+        const head = await unsigned.request.head(direct+'/generate_204',{maxRedirects:0});
+        assert.equal(head.status(),302); assert.equal(head.headers().location,base+'/');
+        const root = await unsigned.request.get(direct+'/',{headers:{Host:'captive.apple.com'},maxRedirects:0});
+        assert.equal(root.status(),302); assert.equal(root.headers().location,base+'/');
+        assert.equal((await unsigned.request.get(direct+'/api/state',{headers:{Host:'captive.apple.com'},maxRedirects:0})).status(),401);
+        assert.equal((await unsigned.request.get(direct+'/wpad.dat',{maxRedirects:0})).status(),404);
+      } finally { await unsigned.close(); }
+    });
     await page.goto(base+'/dashboard');
     await t.test('login supports password managers and remembered sign-in', async () => {
       assert.equal(await page.locator('#username').getAttribute('autocomplete'),'username');
@@ -113,6 +148,23 @@ test('GrowBox live dashboard and PWA', {timeout: 90000}, async t => {
       await returningPage.waitForSelector('#temperature');
       assert.equal(new URL(returningPage.url()).pathname,'/dashboard');
       await returning.close();
+    });
+    await t.test('remembered login cannot trap a captive probe on its foreign hostname', async () => {
+      const response = await context.request.get(direct+'/redirect',{headers:{Host:'www.msftconnecttest.com'},maxRedirects:0});
+      assert.equal(response.status(),302); assert.equal(response.headers().location,base+'/');
+      const cookie = (await context.cookies()).find(c => c.name === 'GrowBoxSession');
+      const root = await context.request.get(direct+'/',{headers:{Host:'captive.apple.com',Cookie:'GrowBoxSession='+cookie.value},maxRedirects:0});
+      assert.equal(root.status(),302); assert.equal(root.headers().location,base+'/');
+      // The absolute redirect reaches the canonical host and the real dashboard.
+      const landing = await context.request.get(response.headers().location);
+      assert.equal(new URL(landing.url()).pathname,'/dashboard');
+      assert.equal(landing.status(),200);
+      onSetupAP = false;
+      try {
+        const home = await context.request.get(direct+'/redirect',{headers:{Host:'www.msftconnecttest.com'},maxRedirects:0});
+        assert.equal(home.status(),404); assert.equal(home.headers().location,undefined);
+        assert.equal((await context.request.get(base+'/dashboard')).status(),200);
+      } finally { onSetupAP = true; }
     });
     await waitText('temperature','25.5 \u00b0C');
     await page.waitForFunction(() => !document.getElementById('simulation').hidden);

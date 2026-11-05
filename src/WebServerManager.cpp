@@ -131,7 +131,9 @@ void WebServerManager::begin() {
     server.addHandler(&events);
     server.onNotFound([this](AsyncWebServerRequest* request) {
         if (request->url().startsWith("/api/")) { json(request, 404, "{\"error\":\"Unknown API route\"}"); return; }
-        if (CaptivePortalHandler::onSetupAP(request)) CaptivePortalHandler::redirectToSetup(request);
+        if (CaptivePortalHandler::onSetupAP(request) &&
+            (request->method() == HTTP_GET || request->method() == HTTP_HEAD))
+            CaptivePortalHandler::redirectToSetup(request);
         else request->send(404, "text/plain", "Not found");
     });
     server.begin();
