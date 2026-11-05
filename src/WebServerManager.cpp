@@ -1,5 +1,6 @@
 #include "WebServerManager.h"
 #include "WebAssets.h"
+#include "CaptivePortalHandler.h"
 #include <math.h>
 #include <ESPmDNS.h>
 #include <Preferences.h>
@@ -48,6 +49,7 @@ bool WebServerManager::checkAuthentication(AsyncWebServerRequest* request) {
 
 void WebServerManager::begin() {
     wifiRequests = xQueueCreate(1, sizeof(WiFiRequest));
+    server.addHandler(new CaptivePortalHandler());
     server.on("/", HTTP_GET, [this](AsyncWebServerRequest* request) {
         if (auth->isUserAuthenticated(request->header("Cookie"))) request->redirect("/dashboard");
         else {
@@ -129,10 +131,11 @@ void WebServerManager::begin() {
     server.addHandler(&events);
     server.onNotFound([this](AsyncWebServerRequest* request) {
         if (request->url().startsWith("/api/")) { json(request, 404, "{\"error\":\"Unknown API route\"}"); return; }
-        // Captive portal probes redirect to setup without returning HTML for API calls.
-        request->redirect(auth->isUserAuthenticated(request->header("Cookie")) ? "/dashboard" : "http://192.168.4.1/");
+        if (CaptivePortalHandler::onSetupAP(request)) CaptivePortalHandler::redirectToSetup(request);
+        else request->send(404, "text/plain", "Not found");
     });
     server.begin();
+    dnsServer.setTTL(0); // avoid caching setup addresses after returning to home WiFi
     dnsServer.start(53, "*", WiFi.softAPIP());
     WiFi.setAutoReconnect(false); // retries are scheduled without blocking the server
     loadSavedWiFi();
