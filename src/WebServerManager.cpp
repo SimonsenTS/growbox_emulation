@@ -217,7 +217,7 @@ String WebServerManager::stateJSON(const GrowboxState& s) {
     body += ",\"humidity\":" + number(s.sensors.humidity, s.fresh && s.sensors.humidity >= 0);
     body += ",\"soil\":" + number(s.sensors.soil, s.fresh && s.sensors.soil >= 0, 0);
     body += ",\"water\":" + number(s.sensors.water, s.fresh && s.sensors.water >= 0, 0);
-    body += ",\"lux\":" + number(s.sensors.lux, s.fresh && s.sensors.lux >= 0, 0);
+    body += ",\"lightPercentage\":" + number(s.lightPercentage, s.fresh && s.lightPercentage >= 0, 0);
     body += String(",\"pump\":") + (s.pump ? "true" : "false");
     body += String(",\"growLed\":") + (s.growLed ? "true" : "false");
     body += String(",\"boost\":") + (s.boost ? "true" : "false");

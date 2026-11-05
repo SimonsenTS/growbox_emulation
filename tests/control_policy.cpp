@@ -18,3 +18,20 @@ static_assert(lux(100, 0) > 177 && lux(100, 0) < 178, "low ratio lux");
 static_assert(lux(100, 100) > 232 && lux(100, 100) < 233, "mid ratio lux");
 static_assert(lux(25, 75) > 23 && lux(25, 75) < 24, "high ratio lux");
 static_assert(lux(1, 99) == 0, "infrared dominated reading");
+
+static_assert(lightPercentage(0, 0, 10000) == 0, "minimum is zero percent");
+static_assert(lightPercentage(5000, 0, 10000) == 50, "midpoint is fifty percent");
+static_assert(lightPercentage(10000, 0, 10000) == 100, "maximum is one hundred percent");
+static_assert(lightPercentage(20000, 0, 10000) == 100, "above maximum clamps");
+static_assert(lightPercentage(50, 100, 1100) == 0, "below custom minimum clamps");
+static_assert(lightPercentage(600, 100, 1100) == 50, "nonzero minimum is subtracted");
+static_assert(lightPercentage(615, 0, 10000) == 6, "nearest whole percentage");
+static_assert(lightPercentage(-1, 0, 10000) == -1, "missing sensor stays unavailable");
+static_assert(lightPercentage(std::numeric_limits<float>::quiet_NaN(), 0, 10000) == -1, "NaN unavailable");
+static_assert(lightPercentage(std::numeric_limits<float>::infinity(), 0, 10000) == -1, "infinity unavailable");
+static_assert(lightPercentage(100, 100, 100) == -1, "equal endpoints rejected");
+static_assert(lightPercentage(100, 1000, 0) == -1, "reversed endpoints rejected");
+
+static_assert(lightPercentage(725, 0, 1450) == 50, "office light midpoint");
+static_assert(lightPercentage(1450, 0, 1450) == 100, "office light maximum");
+static_assert(lightPercentage(1800, 0, 1450) == 100, "brighter than office maximum clamps");

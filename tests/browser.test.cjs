@@ -10,7 +10,7 @@ try { playwright = require('playwright'); }
 catch { playwright = require('../.pio/browser-tests/node_modules/playwright'); }
 
 test('GrowBox live dashboard and PWA', {timeout: 90000}, async t => {
-  let state = {revision:1,fresh:true,temperature:25.5,humidity:50,soil:30,water:70,lux:null,pump:false,growLed:false,boost:false,rgb:true,brightness:0,soilColor:0xffa500,waterColor:0x00ff00};
+  let state = {revision:1,fresh:true,temperature:25.5,humidity:50,soil:30,water:70,lightPercentage:null,pump:false,growLed:false,boost:false,rgb:true,brightness:0,soilColor:0xffa500,waterColor:0x00ff00};
   const clients = new Set();
   const posts = [];
   const sessions = new Map();
@@ -64,7 +64,7 @@ test('GrowBox live dashboard and PWA', {timeout: 90000}, async t => {
       res.writeHead(controlStatus, {'Content-Type':'application/json','Cache-Control':'no-store'});
       res.end(controlStatus === 202 ? '{"queued":true}' : '{"error":"Control queue full; retry"}');
       if (controlStatus !== 202) return;
-      if (url.pathname === '/simulation') update(Object.fromEntries(Object.entries(values).map(([k,v]) => [k,Number(v)])));
+      if (url.pathname === '/simulation') update({...Object.fromEntries(Object.entries(values).map(([k,v]) => [k,Number(v)])),lightPercentage:Math.round(Math.min(100,Math.max(0,Number(values.lux)/1450*100)))});
       else if (values.device === 'brightness') update({brightness:Number(values.value),growLed:Number(values.value)>0});
       else update({[values.device]:!state[values.device]});
       return;
@@ -162,7 +162,19 @@ test('GrowBox live dashboard and PWA', {timeout: 90000}, async t => {
       await page.fill('[name="temperature"]','29.2');
       await page.fill('[name="lux"]','615');
       await page.click('#simulation-submit');
-      await waitText('temperature','29.2 \u00b0C'); await waitText('lux','615 lx');
+      await waitText('temperature','29.2 \u00b0C'); await waitText('lightPercentage','42%');
+      assert.equal(navigations,initialNavigations);
+    });
+    await t.test('light percentage updates its meter and preserves unavailable readings', async () => {
+      update({lightPercentage:50});
+      await waitText('lightPercentage','50%');
+      assert.equal(await page.locator('#lightPercentage-meter').evaluate(e=>e.value),50);
+      update({lightPercentage:null});
+      await waitText('lightPercentage','Unavailable');
+      assert.equal(await page.locator('#lightPercentage-meter').isHidden(),true);
+      update({lightPercentage:100});
+      await waitText('lightPercentage','100%');
+      assert.equal(await page.locator('#lightPercentage-meter').isVisible(),true);
       assert.equal(navigations,initialNavigations);
     });
     await t.test('missing and stale sensors lock pump; critical water color persists', async () => {

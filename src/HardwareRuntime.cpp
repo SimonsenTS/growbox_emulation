@@ -5,6 +5,9 @@
 static_assert(AUTO_SENSOR_INTERVAL > 0, "Periodic sampling is required for pump protection");
 static_assert(SENSOR_STALE_MS > AUTO_SENSOR_INTERVAL, "Stale timeout must exceed sampling period");
 
+static_assert(LIGHT_MIN_LUX >= 0 && LIGHT_MAX_LUX > LIGHT_MIN_LUX &&
+    LIGHT_MAX_LUX <= std::numeric_limits<float>::max(), "Light calibration requires finite 0 <= MIN < MAX");
+
 bool HardwareRuntime::begin() {
     devices.begin(); // outputs OFF before any task can run
     samples = xQueueCreate(1, sizeof(SensorSample));
@@ -110,7 +113,7 @@ void HardwareRuntime::publish(const SensorSample& sample, bool fresh) {
     // Publish at display precision to avoid transmitting invisible float changes.
     next.sensors.temperature = roundf(sample.temperature * 10) / 10;
     next.sensors.humidity = roundf(sample.humidity * 10) / 10;
-    next.sensors.lux = roundf(sample.lux);
+    next.lightPercentage = ControlPolicy::lightPercentage(sample.lux, LIGHT_MIN_LUX, LIGHT_MAX_LUX);
     next.fresh = fresh;
     next.pump = devices.getPumpState();
     next.growLed = devices.getGrowLedState();
@@ -121,7 +124,7 @@ void HardwareRuntime::publish(const SensorSample& sample, bool fresh) {
     next.waterColor = (devices.getWaterRedValue() << 16) | (devices.getWaterGreenValue() << 8) | devices.getWaterBlueValue();
     portENTER_CRITICAL(&stateLock);
     const bool changed = next.sensors.temperature != state.sensors.temperature ||
-        next.sensors.humidity != state.sensors.humidity || next.sensors.lux != state.sensors.lux ||
+        next.sensors.humidity != state.sensors.humidity || next.lightPercentage != state.lightPercentage ||
         next.sensors.soil != state.sensors.soil || next.sensors.water != state.sensors.water ||
         next.fresh != state.fresh || next.pump != state.pump || next.growLed != state.growLed ||
         next.boost != state.boost || next.rgb != state.rgb || next.brightness != state.brightness ||

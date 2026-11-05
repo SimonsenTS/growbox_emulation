@@ -19,7 +19,7 @@ The sensor task's settling delays yield to other tasks. One sensor task serializ
 
 A one-sample mailbox transfers complete readings; a bounded 16-command queue transfers controls. A short critical section protects a plain-data snapshot. No lock spans sensor delays, I2C, HTTP or LED operations. HTTP 202 acknowledges queued work; subsequent events report the applied device state.
 
-The server sends a full JSON snapshot only when a displayed value or device state changes. Temperature/humidity are rounded to 0.1 and lux to whole units. The browser updates only affected DOM fields. A new/reconnected client receives the latest complete snapshot. A 15-second transport heartbeat carries no readings. There is no periodic sensor polling or dashboard reload. RGB outputs are also written only when their selected color or enable setting changes.
+The server sends a full JSON snapshot only when a displayed value or device state changes. Temperature/humidity are rounded to 0.1 and light to whole percentages. The browser updates only affected DOM fields. A new/reconnected client receives the latest complete snapshot. A 15-second transport heartbeat carries no readings. There is no periodic sensor polling or dashboard reload. RGB outputs are also written only when their selected color or enable setting changes.
 
 Up to four SSE clients are admitted, with eight queued messages per client. If publication cannot be queued, streams reconnect and receive the latest state rather than accumulating unlimited messages.
 
@@ -66,14 +66,16 @@ Pins/calibration remain in src/Config.h. Confirm them against your actual ESP32-
 
 ## Lux sensor
 
-The original source only reserved an LTR-303 for PCB v2; no lux driver existed. New optional support shares SDA 18 / SCL 17, address 0x29:
+LTR-303 support is enabled in the default esp32 build. It shares SDA 18 / SCL 17, address 0x29. The explicit lux environment remains available:
 
 ```sh
 pio run -e lux
 pio run -e lux -t upload
 ```
 
-This sets ENABLE_LUX_SENSOR=1. The default esp32 build leaves it disabled for the existing PCB. The driver uses gain 1, 100 ms integration, a 500 ms measurement rate and the LTR-303 datasheet formula. Missing, failed and saturated measurements display as unavailable. Validate gain/calibration on real hardware.
+ENABLE_LUX_SENSOR defaults to 1 in src/Config.h. Boards without this sensor can override it with -DENABLE_LUX_SENSOR=0. The driver uses gain 1, 100 ms integration, a 500 ms measurement rate and the LTR-303 datasheet formula. Missing, failed and saturated measurements display as unavailable. Validate gain/calibration on real hardware.
+
+The dashboard shows **light level as 0-100%**, relative to LIGHT_MIN_LUX and LIGHT_MAX_LUX in src/Config.h. The starting calibration is 0 to 1,450 lux, based on the measured office-light maximum: 725 lux displays 50%. Values outside the range are clamped; missing or saturated measurements remain unavailable. This is a relative scale, not a plant-health or PAR/PPFD measurement. Adjust the endpoints to measurements in your grow box. Simulation inputs remain in lux and use the same conversion. Live events are triggered by changes in the displayed percentage, rather than every small lux fluctuation.
 
 ## PWA installation
 
